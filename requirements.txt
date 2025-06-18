@@ -3,13 +3,12 @@ streamlit==1.29.0
 pandas==2.0.3
 numpy==1.24.3
 
-# LangChain dependencies
-langchain==0.3.25
-langchain-community==0.3.25
-langchain-core==0.3.65
-langchain-openai==0.3.23
-langchain-huggingface==0.3.0
-langchain-text-splitters==0.3.8
+# LangChain dependencies - using compatible versions
+langchain==0.1.0
+langchain-community==0.0.10
+langchain-core==0.1.7
+langchain-openai==0.0.5
+langchain-text-splitters==0.0.1
 
 # Vector store and embeddings
 faiss-cpu==1.7.4
@@ -25,5 +24,7 @@ nltk==3.8.1
 # Other utilities
 python-dotenv==1.0.0
 tiktoken==0.5.1
-# requirements.txt - END
 
+# Add these for Hugging Face embeddings
+transformers>=4.30.0
+torch>=1.13.0
