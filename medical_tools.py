@@ -2,26 +2,24 @@
 Streamlined Medical Tools - Direct FAISS Approach
 =================================================
 
-Simplified version that skips manual symptom extraction and works
-directly with FAISS similarity search for better accuracy.
+Works directly with FAISS similarity search.
+
 """
 
 import json
 import re
 import warnings
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 import pandas as pd
 from langchain.tools import tool
 from langchain_community.vectorstores import FAISS
 import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 
 
 def safe_json_dumps(obj):
-    """Safely serialize objects to JSON, converting numpy types to 
+    """Safely serialize objects to JSON, converting numpy types to
     Python types."""
     def convert_types(obj):
         if isinstance(obj, np.integer):
@@ -40,14 +38,6 @@ def safe_json_dumps(obj):
     converted_obj = convert_types(obj)
     return json.dumps(converted_obj)
 
-
-# Download required NLTK data (run once)
-try:
-    nltk.data.find('tokenizers/punkt')
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('punkt')
-    nltk.download('stopwords')
 
 warnings.filterwarnings('ignore')
 
@@ -107,25 +97,25 @@ def clean_user_input(user_input: str) -> str:
     """
     # Convert to lowercase
     cleaned = user_input.lower().strip()
-    
+
     # Remove common conversation starters but keep medical content
     conversation_patterns = [
         r'\b(hello|hi|hey)\b',
-        r'\b(doctor|doc)\b', 
+        r'\b(doctor|doc)\b',
         r'\b(i think|i believe|i feel like)\b',
         r'\b(what should i do|can you help|please help)\b',
         r'\b(i have been|i am|i\'m)\s+(experiencing|having|feeling)\b'
     ]
-    
+
     for pattern in conversation_patterns:
         cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
-    
+
     # Clean up extra whitespace
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-    
+
     # Remove leading/trailing punctuation but keep internal punctuation
     cleaned = re.sub(r'^[^\w\s]+|[^\w\s]+$', '', cleaned)
-    
+
     return cleaned
 
 
@@ -133,18 +123,18 @@ def clean_user_input(user_input: str) -> str:
 def analyze_symptoms_direct(user_input: str) -> str:
     """
     Direct symptom analysis using FAISS without explicit symptom extraction.
-    This is the main function that replaces both extract_symptoms and 
+    This is the main function that replaces both extract_symptoms and
     find_probable_diseases.
-    
+
     Args:
         user_input: Raw user input describing symptoms
-        
+
     Returns:
         JSON string containing diseases, extracted symptoms, and metadata
     """
     if not _FAISS_SYMPTOM_INDEX:
         return safe_json_dumps({
-            "diseases": [], 
+            "diseases": [],
             "extracted_symptoms": [],
             "success": False,
             "message": "Disease database not available"
@@ -152,7 +142,7 @@ def analyze_symptoms_direct(user_input: str) -> str:
 
     if not user_input.strip():
         return safe_json_dumps({
-            "diseases": [], 
+            "diseases": [],
             "extracted_symptoms": [],
             "success": False,
             "message": "No input provided"
@@ -160,36 +150,36 @@ def analyze_symptoms_direct(user_input: str) -> str:
 
     # Light cleaning of input
     cleaned_input = clean_user_input(user_input)
-    
+
     try:
         # Search FAISS directly - it handles the complexity for us
         results = _FAISS_SYMPTOM_INDEX.similarity_search_with_score(
             cleaned_input, k=15
         )
-        
+
         # Process FAISS results
         disease_results = []
         found_symptoms = set()  # Track symptoms found in matches
-        
+
         for doc, sim_score in results:
             sim_score = float(sim_score)
-            
+
             # Good similarity threshold (adjust based on your data)
             if sim_score <= 1.5:  # Lower scores = better matches
                 disease_name = doc.metadata.get('disease', 'unknown')
-                
+
                 # Calculate confidence from similarity score
                 # Convert similarity to confidence (0-100%)
                 confidence_score = max(0.0, 1.0 - (sim_score / 2.0))
                 confidence_percentage = round(confidence_score * 100, 1)
-                
+
                 # Extract symptoms from the matched content
                 matched_content = doc.page_content.lower()
-                content_symptoms = [s.strip() for s in 
-                                   re.split(r'[,;]', matched_content) 
-                                   if s.strip()]
+                content_symptoms = [s.strip() for s in
+                                    re.split(r'[,;]', matched_content)
+                                    if s.strip()]
                 found_symptoms.update(content_symptoms)
-                
+
                 result_dict = {
                     'disease': str(disease_name),
                     'similarity_score': sim_score,
@@ -199,12 +189,12 @@ def analyze_symptoms_direct(user_input: str) -> str:
                     'matched_content': str(doc.page_content),
                     'all_metadata': doc.metadata
                 }
-                
+
                 disease_results.append(result_dict)
-        
+
         # Sort by confidence (highest first)
         disease_results.sort(key=lambda x: -x['confidence_score'])
-        
+
         # Remove duplicate diseases (keep highest confidence)
         seen_diseases = set()
         unique_results = []
@@ -213,10 +203,10 @@ def analyze_symptoms_direct(user_input: str) -> str:
             if disease not in seen_diseases:
                 seen_diseases.add(disease)
                 unique_results.append(result)
-        
+
         # Extract unique symptoms from all matches
         extracted_symptoms = list(found_symptoms)
-        
+
         return safe_json_dumps({
             "diseases": unique_results[:5],  # Top 5 diseases
             "extracted_symptoms": extracted_symptoms,
@@ -225,12 +215,12 @@ def analyze_symptoms_direct(user_input: str) -> str:
             "search_query": cleaned_input,
             "original_input": user_input,
             "success": True,
-            "message": f"Found {len(unique_results[:5])} diseases via direct FAISS search"
+            "message": f"Found {len(unique_results[:5])} diseases via FAISS"
         })
-        
+
     except Exception as e:
         return safe_json_dumps({
-            "diseases": [], 
+            "diseases": [],
             "extracted_symptoms": [],
             "success": False,
             "message": f"Error in direct symptom analysis: {e}"
@@ -241,47 +231,47 @@ def analyze_symptoms_direct(user_input: str) -> str:
 def analyze_symptom_severity_from_matches(analysis_result: str) -> str:
     """
     Analyze severity using symptoms extracted from FAISS matches.
-    
+
     Args:
         analysis_result: JSON string from analyze_symptoms_direct
-        
+
     Returns:
         JSON string containing severity analysis
     """
     try:
         # Parse the analysis result
         data = json.loads(analysis_result)
-        
+
         if not data.get("success", False):
             return json.dumps({
-                "severity_scores": {}, 
+                "severity_scores": {},
                 "overall_severity": 4.0,
-                "overall_level": "Moderate", 
+                "overall_level": "Moderate",
                 "success": False,
                 "message": "No valid symptoms to analyze"
             })
-        
+
         # Get symptoms from FAISS matches
         symptoms = data.get("extracted_symptoms", [])
-        
+
         if not symptoms:
             return json.dumps({
-                "severity_scores": {}, 
+                "severity_scores": {},
                 "overall_severity": 4.0,
-                "overall_level": "Moderate", 
+                "overall_level": "Moderate",
                 "success": False,
                 "message": "No symptoms extracted from matches"
             })
-        
+
         # Use existing severity analysis function
         symptoms_str = ", ".join(symptoms)
         return analyze_symptom_severity(symptoms_str)
-        
+
     except Exception as e:
         return json.dumps({
-            "severity_scores": {}, 
+            "severity_scores": {},
             "overall_severity": 4.0,
-            "overall_level": "Moderate", 
+            "overall_level": "Moderate",
             "success": False,
             "message": f"Error in severity analysis: {e}"
         })
@@ -292,18 +282,18 @@ def analyze_symptom_severity(symptoms_list: str) -> str:
     """
     Analyzes the severity of symptoms using FAISS similarity and severity
     database. (Kept for compatibility)
-    
+
     Args:
         symptoms_list: Comma-separated string of symptoms
-        
+
     Returns:
         JSON string containing severity analysis
     """
     if not _FAISS_SEVERITY_INDEX or _DF_DISEASE_SYMPTOM_SEVERITY is None:
         return json.dumps({
-            "severity_scores": {}, 
+            "severity_scores": {},
             "overall_severity": 4.0,
-            "overall_level": "Moderate", 
+            "overall_level": "Moderate",
             "success": False,
             "message": "Severity database not available"
         })
@@ -312,9 +302,9 @@ def analyze_symptom_severity(symptoms_list: str) -> str:
 
     if not symptoms:
         return json.dumps({
-            "severity_scores": {}, 
+            "severity_scores": {},
             "overall_severity": 4.0,
-            "overall_level": "Moderate", 
+            "overall_level": "Moderate",
             "success": False,
             "message": "No symptoms provided"
         })
@@ -400,13 +390,13 @@ def complete_medical_analysis(user_input: str) -> str:
     """
     One-stop medical analysis function that does everything:
     1. Direct FAISS search for diseases
-    2. Symptom extraction from matches  
+    2. Symptom extraction from matches
     3. Severity analysis
     4. All in one streamlined call
-    
+
     Args:
         user_input: User's raw symptom description
-        
+
     Returns:
         JSON string with complete analysis
     """
@@ -414,14 +404,15 @@ def complete_medical_analysis(user_input: str) -> str:
         # Step 1: Direct symptom analysis via FAISS
         analysis_result = analyze_symptoms_direct(user_input)
         analysis_data = json.loads(analysis_result)
-        
+
         if not analysis_data.get("success", False):
             return analysis_result
-        
+
         # Step 2: Severity analysis using extracted symptoms
-        severity_result = analyze_symptom_severity_from_matches(analysis_result)
+        severity_result = analyze_symptom_severity_from_matches(
+            analysis_result)
         severity_data = json.loads(severity_result)
-        
+
         # Step 3: Combine everything into comprehensive result
         complete_result = {
             "user_input": user_input,
@@ -436,9 +427,9 @@ def complete_medical_analysis(user_input: str) -> str:
             "success": True,
             "message": "Complete medical analysis performed"
         }
-        
+
         return safe_json_dumps(complete_result)
-        
+
     except Exception as e:
         return safe_json_dumps({
             "user_input": user_input,
@@ -647,7 +638,7 @@ def get_medical_tools():
     """
     Get all medical tools for use in LangChain agent.
     Now includes the new streamlined functions.
-    
+
     Returns:
         List of medical tools
     """
@@ -657,17 +648,6 @@ def get_medical_tools():
         analyze_symptom_severity,          # Existing: For compatibility
         get_disease_precautions,          # Existing: Unchanged
         get_disease_description           # Existing: Unchanged
-    ]
-
-
-def get_streamlined_tools():
-    """
-    Get just the new streamlined tools (recommended for new implementations)
-    """
-    return [
-        complete_medical_analysis,    # Use this for everything!
-        get_disease_precautions,
-        get_disease_description
     ]
 
 
@@ -692,7 +672,7 @@ def test_tools():
         "I'm experiencing fever, headache, chills",
         "I feel nauseous and have body aches",
         "fever, headache, chills, fatigue",
-        "My ears are burning, my skin is red and itchy and my nose is running",
+        "My ears burning, my skin is red and itchy and my nose is running",
         "I have itching, skin rash, nodal skin eruptions"
     ]
 
@@ -701,12 +681,13 @@ def test_tools():
             print(f"\nTesting: '{test_case}'")
             result = complete_medical_analysis(test_case)
             result_data = json.loads(result)
-            
+
             if result_data.get("success"):
                 diseases = result_data.get("diseases", [])
                 symptoms = result_data.get("extracted_symptoms", [])
-                print(f"✅ Found {len(diseases)} diseases, {len(symptoms)} symptoms")
-                
+                print(f"✅ Found {len(diseases)} diseases, "
+                      f"{len(symptoms)} symptoms")
+
                 # Show top disease
                 if diseases:
                     top_disease = diseases[0]
@@ -714,7 +695,7 @@ def test_tools():
                           f"({top_disease['confidence_percentage']}%)")
             else:
                 print(f"⚠️ Analysis failed: {result_data.get('message')}")
-                
+
         except Exception as e:
             print(f"❌ Error: {e}")
             return False
@@ -757,3 +738,4 @@ if __name__ == "__main__":
     print("Streamlined Medical Tools loaded successfully!")
     print("Main function: complete_medical_analysis(user_input)")
     print("Test function: test_tools()")
+

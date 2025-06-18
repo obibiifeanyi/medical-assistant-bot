@@ -7,7 +7,7 @@ import streamlit as st
 import os
 import sys
 import pandas as pd
-from pathlib import Path
+
 
 # Add current directory to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -120,16 +120,16 @@ def load_resources():
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
-        
+       
         # Load FAISS indices - try both with and without _medibot suffix
         symptom_index_path = "indices/faiss_symptom_index"
         if os.path.exists("indices/faiss_symptom_index_medibot"):
             symptom_index_path = "indices/faiss_symptom_index_medibot"
-            
+           
         severity_index_path = "indices/faiss_severity_index"
         if os.path.exists("indices/faiss_severity_index_medibot"):
             severity_index_path = "indices/faiss_severity_index_medibot"
-        
+       
         faiss_symptom = FAISS.load_local(
             symptom_index_path, embeddings,
             allow_dangerous_deserialization=True
