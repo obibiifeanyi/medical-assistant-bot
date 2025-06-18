@@ -34,8 +34,8 @@ def check_files():
             "data/disease_symptom_description.csv"
         ],
         "FAISS indices": [
-            "indices/faiss_symptom_index",
-            "indices/faiss_severity_index"
+            "indices/faiss_symptom_index_medibot",
+            "indices/faiss_severity_index_medibot",
         ]
     }
     
