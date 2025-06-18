@@ -1,30 +1,24 @@
 # Core dependencies
-streamlit==1.29.0
-pandas==2.0.3
-numpy==1.24.3
+streamlit
+pandas
+numpy
 
-# LangChain dependencies - using compatible versions
-langchain==0.1.0
-langchain-community==0.0.10
-langchain-core==0.1.7
-langchain-openai==0.0.5
-langchain-text-splitters==0.0.1
+# LangChain - let pip resolve versions
+langchain
+langchain-community
+langchain-openai
 
 # Vector store and embeddings
-faiss-cpu==1.7.4
-sentence-transformers==2.2.2
-huggingface-hub==0.19.4
+faiss-cpu
+sentence-transformers
+langchain-huggingface
 
 # OpenAI
-openai==1.3.0
+openai
 
 # NLTK for text processing
-nltk==3.8.1
+nltk
 
 # Other utilities
-python-dotenv==1.0.0
-tiktoken==0.5.1
-
-# Add these for Hugging Face embeddings
-transformers>=4.30.0
-torch>=1.13.0
+python-dotenv
+tiktoken
