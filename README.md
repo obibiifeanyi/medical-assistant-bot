@@ -1,3 +1,14 @@
+---
+title: Medical Assistant Bot
+emoji: 🏥
+colorFrom: blue
+colorTo: green
+sdk: streamlit
+sdk_version: 1.29.0
+app_file: app.py
+pinned: false
+---
+
 # Medical Assistant Chatbot 🏥
 
 A conversational AI medical assistant that can analyze symptoms, identify possible conditions, and provide health information using LangChain and OpenAI.
