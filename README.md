@@ -64,16 +64,25 @@ To run locally:
 
 ```bash
 # Clone the repository
-git clone <your-repo-url>
+git clone https://github.com/wbott/medical-assistant-bot
+cd medical-assistant-bot
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up your OpenAI API key
+# Set your OpenAI API key:
+# On Linux/macOS:
 export OPENAI_API_KEY="your-key-here"
+
+# On Windows CMD:
+set OPENAI_API_KEY=your-key-here
+
+# On Windows PowerShell:
+$env:OPENAI_API_KEY="your-key-here"
 
 # Run the app
 streamlit run app.py
+
 ```
 
 ---
