@@ -1,5 +1,5 @@
 """
-Simplified Medical Assistant Streamlit App
+Medical Assistant Streamlit App
 This version has better error handling and clearer setup instructions
 """
 

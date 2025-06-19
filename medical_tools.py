@@ -15,7 +15,6 @@ import numpy as np
 import pandas as pd
 from langchain.tools import tool
 from langchain_community.vectorstores import FAISS
-import nltk
 
 
 def safe_json_dumps(obj):
@@ -626,7 +625,9 @@ def get_disease_description(disease_name: str) -> str:
             "description": f"No detailed description found for "
                           f"{disease_name}.",
             "success": False,
-            "message": f"No description found for {disease_name}"
+            "message": (
+                f"No description found for {disease_name}"
+            )
         })
 
 
