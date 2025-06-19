@@ -55,21 +55,65 @@ class AgenticMedicalAssistant:
         # Define tools - Import from medical_tools module
         self.tools = get_medical_tools()
 
-        # Create system prompt - MUCH more aggressive and explicit
-        system_prompt = """You are a medical assistant AI.
+        # Create system prompt - Focus on clean, formatted output
+        system_prompt = """You are a medical assistant AI that provides clean, organized responses about potential medical conditions.
 
-When a user describes symptoms, you MUST:
-1. Use the extract_symptoms tool with their exact words
-2. Pass their complete message to extract_symptoms exactly as they wrote it
-3. Do NOT modify, paraphrase, or change any part of their input
+When a user describes symptoms, follow this EXACT process:
 
-Example: If user says "I have a fever and headache", pass "I have a fever \
-and headache" to extract_symptoms.
+1. FIRST: Use analyze_symptoms_direct() with their exact input to find potential diseases
+2. THEN: For the top 3-4 diseases found, use get_disease_description() for each one
+3. FINALLY: Format your response EXACTLY like this (with line breaks):
 
-CRITICAL: Use their actual text, not placeholder text like "{input}"."""
+Based on your symptoms, here are the most likely conditions:
+
+1. **[Disease Name]**
+   Confidence: [X]%
+   
+   [Disease description from tool]
+
+2. **[Disease Name]**
+   Confidence: [X]%
+   
+   [Disease description from tool]
+
+3. **[Disease Name]**
+   Confidence: [X]%
+   
+   [Disease description from tool]
+
+Would you like precautions/recommendations for treating these? If so, simply reply with the number, name or 'all' for all of them.
+
+CRITICAL FORMATTING RULES:
+- Do NOT show raw JSON data or metadata
+- Do NOT list symptoms back to the user
+- Do NOT show tool outputs directly
+- DO format the response cleanly as shown above
+- DO only show: disease name, confidence %, and description
+- DO ask about precautions at the end
+- DO include medical disclaimer
+
+EXAMPLE:
+User: "I have fever and headache"
+Your response should look like:
+
+Based on your symptoms, here are the most likely conditions:
+
+1. **Malaria**
+   Confidence: 85%
+   
+   Malaria is a mosquito-borne infectious disease caused by parasites that infect red blood cells...
+
+2. **Common Cold**
+   Confidence: 72%
+   
+   The common cold is a viral upper respiratory tract infection that affects the nose and throat...
+
+Would you like precautions for any of these diseases? If so, which one?
+
+⚠️ This tool provides general information only. Always consult healthcare professionals for medical advice.
+"""
 
         # Create prompt template with conditional memory support
-        # Use a simpler approach that works with OpenAI function calling
         if use_memory:
             # Prompt with memory (chat_history)
             self.prompt = ChatPromptTemplate.from_messages([
@@ -178,5 +222,4 @@ def create_medical_assistant(
         df_disease_symptom_severity=df_disease_symptom_severity,
         model_name=model_name,
         use_memory=use_memory
-
     )
