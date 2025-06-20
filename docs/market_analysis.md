@@ -34,7 +34,7 @@ The internet of 2025 offers numerous free symptom-checking tools, providing user
 
 ## 3. [Patient.Info Symptom Checker](https://patient.info/symptom-checker)
 
-![Patient.Info Symptom Checker Screenshot](../images/Patient.info.png)
+![Patient.Info Symptom Checker Screenshot](../images/patient_info.png)
 
 
 ### Strengths:
@@ -49,7 +49,7 @@ The internet of 2025 offers numerous free symptom-checking tools, providing user
 
 ## 4. [BlueCross BlueShield of Alabama Symptom Checker](https://www.bcbsal.org/web/symptom-checker)
 
-![BlueCross BlueShield Symptom Checker Screenshot](../images/bcbs-al.png)
+![BlueCross BlueShield Symptom Checker Screenshot](../images/bcbs_al.png)
 
 ### Strengths:
 - Allows natural language symptom inputs with flexible matching.

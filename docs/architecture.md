@@ -4,7 +4,7 @@
 
 This document outlines the architecture of an intelligent medical assistant bot designed for symptom diagnosis using Retrieval-Augmented Generation (RAG) technology. The system leverages multiple data sources and an agentic approach to provide accurate diagnostic suggestions and medical information based on user-reported symptoms.
 
-*[Insert Architecture Diagram Here]*
+![Architecture Overview](../images/architecture_overview.png)
 
 ## System Architecture Components
 
