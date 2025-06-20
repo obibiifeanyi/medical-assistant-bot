@@ -111,7 +111,10 @@ with st.sidebar:
     if st.button("🗑️ Clear Chat"):
         st.session_state.messages = []
         if st.session_state.assistant:
-            st.session_state.assistant.reset_conversation()
+            # Completely recreate the assistant
+            st.session_state.assistant = None
+            # This will trigger recreation on next interaction
+        st.rerun()  # Force a rerun to update the UI
 
 
 # Main content
