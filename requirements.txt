@@ -13,8 +13,12 @@ faiss-cpu
 sentence-transformers
 langchain-huggingface
 
-# OpenAI
-openai
+# OpenAI (enhanced for vision)
+openai>=1.0.0
+
+# Image processing for enhanced features
+Pillow
+pillow-heif  # For HEIF/HEIC image support
 
 # NLTK for text processing
 nltk
@@ -22,3 +26,9 @@ nltk
 # Other utilities
 python-dotenv
 tiktoken
+
+# Optional: Enhanced image preprocessing
+opencv-python-headless  # For advanced image preprocessing (optional)
+
+# Development and testing
+pytest  # For testing enhanced functionality
