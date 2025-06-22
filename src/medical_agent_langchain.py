@@ -11,7 +11,6 @@ This version ensures the agent:
 
 import warnings
 from typing import Optional
-import json
 
 import pandas as pd
 from langchain.agents import create_openai_functions_agent, AgentExecutor
@@ -20,7 +19,6 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.vectorstores import FAISS
 from langchain_openai import ChatOpenAI
 
-# Import enhanced tools with debugging
 from medical_tools import get_enhanced_medical_tools, set_global_resources
 
 warnings.filterwarnings('ignore')
@@ -38,7 +36,7 @@ class AgenticMedicalAssistant:
                  model_name: str = "gpt-3.5-turbo",
                  use_memory: bool = True):
 
-        print(f"🚀 Initializing Streamlined AgenticMedicalAssistant...")
+        print(f"🚀 Initializing AgenticMedicalAssistant with model: {model_name}")
 
         # Set global resources for tools
         set_global_resources(
@@ -56,14 +54,13 @@ class AgenticMedicalAssistant:
         # Store vision model reference
         self.vision_model = vision_model
         self.has_vision = vision_model is not None
+        print(f"👁️ Vision capabilities: {self.has_vision}")
 
         # Get enhanced tools
         self.tools = get_enhanced_medical_tools()
         print(f"🔧 Tools loaded: {[tool.name for tool in self.tools]}")
 
         # Streamlined system prompt focused on proper tool workflow
-        # Add this to your medical_agent_langchain.py file to replace the system prompt
-
         system_prompt = """You are a medical assistant AI that uses specialized tools to analyze symptoms and provide medical information.
 
 **CRITICAL: YOU MUST USE TOOL OUTPUTS EXACTLY AS PROVIDED**
@@ -165,8 +162,8 @@ Would you like precautions for any of these conditions?
             early_stopping_method="generate",
             return_intermediate_steps=True
         )
-        
-        print("✅ Streamlined AgenticMedicalAssistant initialized!")
+
+        print("✅ AgenticMedicalAssistant initialized successfully!")
 
     def chat(self, user_input: str) -> str:
         """
@@ -178,7 +175,7 @@ Would you like precautions for any of these conditions?
         Returns:
             Assistant's response
         """
-        print(f"\n🎯 STREAMLINED CHAT REQUEST: {user_input}")
+        print(f"\n🎯 AGENT CHAT REQUEST: {user_input}")
         
         try:
             response = self.agent_executor.invoke({"input": user_input})
@@ -191,13 +188,17 @@ Would you like precautions for any of these conditions?
                     if hasattr(step, '__len__') and len(step) >= 2:
                         action, observation = step[0], step[1]
                         print(f"  {i+1}. {action.tool}")
+                        # Show first 100 chars of observation for debugging
+                        obs_preview = str(observation)[:100] + "..." if len(str(observation)) > 100 else str(observation)
+                        print(f"     Result: {obs_preview}")
             
             final_output = response.get("output", "No output generated")
+            print(f"✅ AGENT FINAL OUTPUT: {final_output[:200]}...")
             return final_output
             
         except Exception as e:
             error_msg = f"I apologize, but I encountered an error: {str(e)}. Please try rephrasing your question."
-            print(f"❌ Chat error: {error_msg}")
+            print(f"❌ Agent chat error: {error_msg}")
             return error_msg
 
     def reset_conversation(self):
@@ -243,7 +244,7 @@ def create_medical_assistant(
     Returns:
         Configured AgenticMedicalAssistant instance
     """
-    print("🏭 Creating streamlined medical assistant...")
+    print("🏭 Creating medical assistant...")
     
     return AgenticMedicalAssistant(
         faiss_symptom_index=faiss_symptom_index,
@@ -255,12 +256,3 @@ def create_medical_assistant(
         model_name=model_name,
         use_memory=use_memory
     )
-
-if __name__ == "__main__":
-    print("Streamlined Medical Agent with Proper Tool Flow loaded!")
-    print("=" * 60)
-    print("Key Features:")
-    print("- Focused symptom extraction from images")
-    print("- Proper tool workflow: image → symptoms → diseases → descriptions")
-    print("- Clean, medical-focused responses")
-    print("- Streamlined user experience")

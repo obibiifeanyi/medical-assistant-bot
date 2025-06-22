@@ -1,8 +1,8 @@
 """
-Kickstart HealthIQ Streamlit App - WORKING VERSION
-================================================
+Kickstart HealthIQ Streamlit App - PRODUCTION VERSION
+===================================================
 
-Fixed all the function definition and memory management issues.
+Clean production version with all debugging removed.
 """
 
 import os
@@ -25,19 +25,19 @@ st.set_page_config(
     layout="wide"
 )
 
-# FIXED CSS - Better layout with visible disclaimer
+# CSS Styling
 st.markdown("""
 <style>
     /* Remove default Streamlit padding/margins */
     .main .block-container {
         padding-top: 1rem !important;
-        padding-bottom: 5rem !important;  /* Space for disclaimer */
+        padding-bottom: 5rem !important;
         max-width: 100% !important;
     }
     
     /* Chat messages container with better scrolling */
     .chat-messages {
-        max-height: 400px;  /* Reduced height to ensure disclaimer fits */
+        max-height: 400px;
         overflow-y: auto;
         border: 2px solid #333;
         border-radius: 10px;
@@ -61,7 +61,7 @@ st.markdown("""
         margin: 1rem 0;
     }
     
-    /* FIXED: Use sticky instead of fixed for disclaimer */
+    /* Disclaimer styling */
     .disclaimer {
         position: sticky;
         bottom: 0;
@@ -116,47 +116,36 @@ st.title("🏥 Kickstart HealthIQ Chatbot")
 st.markdown("*Now with proper agentic image analysis capabilities*")
 
 
-# FIXED: Define helper functions properly
+# Helper functions
 def clear_all_data():
     """Clear all chat and image data."""
-    # Clear session state
     st.session_state.messages = []
     st.session_state.uploaded_image = None
     st.session_state.image_base64 = None
     
-    # Clear the file uploader widget by updating its key
     if 'uploader_key' not in st.session_state:
         st.session_state.uploader_key = 0
     st.session_state.uploader_key += 1
     
-    # Reset assistant
     if hasattr(st.session_state, 'assistant') and st.session_state.assistant:
         st.session_state.assistant = None
     
-    # Force rerun to update UI
     st.rerun()
 
 
 def manage_conversation_memory():
-    """
-    Automatically manage conversation memory to prevent context length issues.
-    Keeps recent messages and important context while removing older ones.
-    """
-    if len(st.session_state.messages) > 10:  # Start managing after 10 messages
-        # Calculate approximate token count (rough estimate: 4 chars = 1 token)
+    """Automatically manage conversation memory to prevent context length issues."""
+    if len(st.session_state.messages) > 10:
         total_chars = sum(len(msg["content"]) for msg in st.session_state.messages)
         estimated_tokens = total_chars // 4
         
-        # If approaching limit (leaving room for system prompt and tools)
-        if estimated_tokens > 12000:  # Conservative limit
+        if estimated_tokens > 12000:
             st.info("🔄 **Auto-trimming old messages** to keep conversation flowing smoothly...")
             
-            # Keep the first message (usually welcome) and last 6 messages
             if len(st.session_state.messages) > 8:
                 first_msg = st.session_state.messages[0]
                 recent_msgs = st.session_state.messages[-6:]
                 
-                # Add a transition message to explain the gap
                 transition_msg = {
                     "role": "assistant",
                     "content": "📝 *[Earlier conversation trimmed to manage memory - conversation continues below]*",
@@ -165,7 +154,6 @@ def manage_conversation_memory():
                 
                 st.session_state.messages = [first_msg, transition_msg] + recent_msgs
                 
-                # Reset assistant memory to match trimmed conversation
                 if hasattr(st.session_state.assistant, 'reset_conversation'):
                     st.session_state.assistant.reset_conversation()
 
@@ -201,10 +189,8 @@ def check_files():
 
 def check_api_key_available() -> bool:
     """Check if OpenAI API key is already available from environment or secrets."""
-    # Check environment variable
     env_key = os.getenv('OPENAI_API_KEY')
     
-    # Check Streamlit secrets
     secrets_key = None
     try:
         secrets_key = st.secrets.get("OPENAI_API_KEY", None)
@@ -253,7 +239,6 @@ if missing:
 
 # Try to import modules from src folder
 try:
-    # Import from src folder
     from medical_agent_langchain import create_medical_assistant
     from langchain_community.vectorstores import FAISS
     from langchain_huggingface import HuggingFaceEmbeddings
@@ -285,18 +270,13 @@ def encode_image_to_base64(image_file) -> Optional[str]:
     """Convert uploaded image to base64 string with enhanced validation and preprocessing."""
     try:
         if image_file is not None:
-            # Reset file pointer to beginning
             image_file.seek(0)
-            
-            # Read image bytes
             image_bytes = image_file.read()
             
-            # Validate we have data
             if not image_bytes:
                 st.error("Image file appears to be empty")
                 return None
             
-            # Check file size
             if len(image_bytes) < 1000:
                 st.error("Image file is too small (less than 1KB)")
                 return None
@@ -308,15 +288,12 @@ def encode_image_to_base64(image_file) -> Optional[str]:
             # Validate image format by checking magic bytes
             format_detected = False
             if image_bytes.startswith(b'\xFF\xD8\xFF'):
-                # JPEG - check for proper structure
                 if b'\xFF\xD9' not in image_bytes[-10:]:
                     st.warning("⚠️ JPEG file may be corrupted - missing end marker")
                 format_detected = True
             elif image_bytes.startswith(b'\x89PNG\r\n\x1a\n'):
-                # PNG
                 format_detected = True
             elif image_bytes.startswith(b'GIF87a') or image_bytes.startswith(b'GIF89a'):
-                # GIF
                 format_detected = True
             elif image_bytes.startswith(b'BM'):
                 st.error("BMP format is not supported. Please convert to JPEG or PNG.")
@@ -327,26 +304,19 @@ def encode_image_to_base64(image_file) -> Optional[str]:
             
             # Try to process with PIL for additional validation
             try:
-                from PIL import Image as PILImage
                 import io
+                img = Image.open(io.BytesIO(image_bytes))
                 
-                # Validate image can be opened
-                img = PILImage.open(io.BytesIO(image_bytes))
-                
-                # Check if image needs conversion
                 if img.format == 'RGBA' or img.mode == 'RGBA':
-                    # Convert RGBA to RGB for better compatibility
                     st.info("Converting RGBA image to RGB for better compatibility...")
-                    rgb_img = PILImage.new('RGB', img.size, (255, 255, 255))
+                    rgb_img = Image.new('RGB', img.size, (255, 255, 255))
                     rgb_img.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
                     
-                    # Save as JPEG
                     output = io.BytesIO()
                     rgb_img.save(output, format='JPEG', quality=90)
                     image_bytes = output.getvalue()
                     
                 elif img.format not in ['JPEG', 'PNG']:
-                    # Convert other formats to JPEG
                     st.info(f"Converting {img.format} to JPEG for better compatibility...")
                     output = io.BytesIO()
                     img.convert('RGB').save(output, format='JPEG', quality=90)
@@ -358,7 +328,6 @@ def encode_image_to_base64(image_file) -> Optional[str]:
             # Encode to base64
             base64_string = base64.b64encode(image_bytes).decode('utf-8')
             
-            # Validate base64 encoding worked
             if len(base64_string) < 100:
                 st.error("Image encoding failed - result too short")
                 return None
@@ -377,7 +346,6 @@ def display_image_preview(image_file, max_width=300):
     try:
         image = Image.open(image_file)
 
-        # Resize for preview if too large
         if image.width > max_width:
             ratio = max_width / image.width
             new_height = int(image.height * ratio)
@@ -385,7 +353,6 @@ def display_image_preview(image_file, max_width=300):
 
         st.image(image, caption="Uploaded Image", use_container_width=True)
 
-        # Show image info
         original_image = Image.open(image_file)
         st.caption(f"Size: {original_image.width}x{original_image.height} px")
 
@@ -409,11 +376,9 @@ if 'uploader_key' not in st.session_state:
 with st.sidebar:
     st.header("🔧 Configuration")
 
-    # Dynamic API Key input - only show if not already available
     api_key_available = check_api_key_available()
     
     if not api_key_available:
-        # Show API key input if not available from environment/secrets
         api_key = st.text_input(
             "OpenAI API Key",
             type="password",
@@ -423,7 +388,6 @@ with st.sidebar:
         if api_key:
             os.environ['OPENAI_API_KEY'] = api_key
     else:
-        # API key already available - show status
         st.success("✅ OpenAI API Key configured")
 
     st.markdown("---")
@@ -438,7 +402,6 @@ with st.sidebar:
         key=f"image_uploader_{st.session_state.uploader_key}"
     )
 
-    # Additional context for image
     image_context = st.text_area(
         "Additional Context",
         placeholder="Describe when symptoms appeared, any pain, itching, etc.",
@@ -448,14 +411,12 @@ with st.sidebar:
     # Handle image upload and display
     if uploaded_file is not None:
         st.session_state.uploaded_image = uploaded_file
-        # Convert to base64 and store
-        uploaded_file.seek(0)  # Reset file pointer
+        uploaded_file.seek(0)
         st.session_state.image_base64 = encode_image_to_base64(uploaded_file)
         
-        if st.session_state.image_base64:  # Only display if encoding was successful
+        if st.session_state.image_base64:
             display_image_preview(uploaded_file)
 
-            # Show image analysis options
             st.info("💡 Image uploaded! You can now:")
             st.markdown("""
             - Ask "Analyze the uploaded image"
@@ -463,7 +424,6 @@ with st.sidebar:
             - Let the AI agent decide when to use image analysis
             """)
     else:
-        # Clear image data if no file uploaded
         st.session_state.uploaded_image = None
         st.session_state.image_base64 = None
         
@@ -474,7 +434,6 @@ with st.sidebar:
     # Clear button with conversation status
     message_count = len(st.session_state.messages)
     if message_count > 0:
-        # Rough token estimate for user awareness
         total_chars = sum(len(msg["content"]) for msg in st.session_state.messages)
         estimated_tokens = total_chars // 4
         
@@ -511,12 +470,10 @@ with st.sidebar:
 def load_resources():
     """Load all medical resources including vision model."""
     try:
-        # Load embeddings
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
 
-        # Load FAISS indices
         symptom_index_path = "indices/faiss_symptom_index"
         if os.path.exists("indices/faiss_symptom_index_medibot"):
             symptom_index_path = "indices/faiss_symptom_index_medibot"
@@ -534,12 +491,10 @@ def load_resources():
             allow_dangerous_deserialization=True
         )
 
-        # Load CSVs
         df_precautions = pd.read_csv("data/disease_precautions.csv")
         df_descriptions = pd.read_csv("data/disease_symptom_description.csv")
         df_severity = pd.read_csv("data/disease_symptom_severity.csv")
 
-        # Initialize vision model if API key is available
         vision_model = None
         if os.getenv('OPENAI_API_KEY') or check_api_key_available():
             try:
@@ -573,8 +528,7 @@ def load_resources():
 def init_assistant():
     """Initialize the Kickstart HealthIQ."""
     if not (os.getenv('OPENAI_API_KEY') or check_api_key_available()):
-        if not api_key_available:
-            st.warning("⚠️ Please enter your OpenAI API key in the sidebar.")
+        st.warning("⚠️ Please enter your OpenAI API key in the sidebar.")
         return False
 
     if st.session_state.assistant is None:
@@ -600,11 +554,10 @@ def init_assistant():
     return True
 
 
-# FIXED: Main content structure with proper disclaimer placement
+# Main content function
 def main_content():
     """Render main content with fixed layout."""
     
-    # Check if assistant is initialized
     if not init_assistant():
         st.error("❌ Assistant not properly initialized. Please check your API key and try again.")
         return
@@ -613,7 +566,6 @@ def main_content():
     st.markdown("### 💬 Chat History")
     
     if st.session_state.messages:
-        # Create properly scrollable chat container
         st.markdown('<div class="chat-messages">', unsafe_allow_html=True)
         
         for i, msg in enumerate(st.session_state.messages):
@@ -624,7 +576,6 @@ def main_content():
         
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        # Welcome message - Using Streamlit components instead of complex HTML
         with st.container():
             st.markdown("### 👋 Welcome to Kickstart HealthIQ!")
             
@@ -650,7 +601,6 @@ def main_content():
             - *"What do you see in this image?"*
             """)
             
-            # Add some visual styling with a border
             st.markdown("---")
     
     # Input Section
@@ -664,7 +614,6 @@ def main_content():
         )
 
     with col2:
-        # Quick action buttons - only show if image is properly loaded
         if st.session_state.uploaded_image and st.session_state.image_base64:
             if st.button("🔍 Analyze Image", use_container_width=True):
                 USER_PROMPT = "Please analyze the uploaded medical image using your image analysis tools and tell me what medical conditions you can identify."
@@ -673,13 +622,10 @@ def main_content():
 
     # Process user input
     if USER_PROMPT:
-        # Auto-manage memory before processing
         manage_conversation_memory()
         
-        # Determine if we have an image available
         HAS_IMAGE = bool(st.session_state.image_base64)
 
-        # Add user message
         user_msg = {
             "role": "user",
             "content": USER_PROMPT,
@@ -687,82 +633,98 @@ def main_content():
         }
         st.session_state.messages.append(user_msg)
 
-        # Get response
         with st.spinner("Analyzing..."):
             try:
-                # Enhanced prompt that provides image data to the agent
                 if HAS_IMAGE:
-                    # Check if we have previous image analysis in conversation
                     previous_visual_symptoms = []
                     
                     # Look through conversation history for previous image analysis
-                    # IMPORTANT: Skip the current user message (last message) to avoid duplication
                     messages_to_check = st.session_state.messages[:-1]  # Exclude current user message
                     
-                    for msg in messages_to_check:
-                        if msg.get("role") == "assistant" and msg.get("has_image", False):
+                    print(f"🔍 SEARCHING FOR VISUAL SYMPTOMS in {len(messages_to_check)} previous messages...")
+                    
+                    for i, msg in enumerate(messages_to_check):
+                        if msg.get("role") == "assistant":
                             content = msg.get("content", "")
+                            print(f"  Checking message {i}: {content[:100]}...")
                             
-                            # Method 1: Look for "Based on the image analysis, I found these visible symptoms:" pattern
-                            if "found these visible symptoms:" in content.lower():
+                            # Method 1: Look for the exact JSON structure from analyze_medical_image tool output
+                            if '"visible_symptoms":' in content:
                                 try:
-                                    symptoms_part = content.split("found these visible symptoms:")[1].split("\n")[0]
-                                    symptoms_part = symptoms_part.strip().rstrip('.')
-                                    if symptoms_part:
-                                        previous_visual_symptoms = [s.strip() for s in symptoms_part.split(",") if s.strip()]
-                                        break
-                                except:
-                                    pass
+                                    import re
+                                    # Find the JSON array in the content
+                                    json_match = re.search(r'"visible_symptoms":\s*\[(.*?)\]', content, re.DOTALL)
+                                    if json_match:
+                                        symptoms_str = json_match.group(1)
+                                        # Extract quoted strings from the array
+                                        symptoms_clean = re.findall(r'"([^"]+)"', symptoms_str)
+                                        if symptoms_clean:
+                                            previous_visual_symptoms = symptoms_clean
+                                            print(f"    ✅ Found visual symptoms via JSON: {previous_visual_symptoms}")
+                                            break
+                                except Exception as e:
+                                    print(f"    ❌ JSON extraction failed: {e}")
                             
-                            # Method 2: Look for "visible symptoms:" pattern
-                            elif "visible symptoms:" in content.lower():
+                            # Method 2: Look for symptoms listed in text after "Based on" or similar patterns
+                            elif any(phrase in content.lower() for phrase in ["based on the symptoms", "visible symptoms", "image analysis"]):
                                 try:
-                                    symptoms_part = content.lower().split("visible symptoms:")[1].split("\n")[0]
-                                    symptoms_part = symptoms_part.strip().rstrip('.')
-                                    if symptoms_part:
-                                        previous_visual_symptoms = [s.strip() for s in symptoms_part.split(",") if s.strip()]
+                                    # Look for symptom keywords in the response
+                                    import re
+                                    symptom_patterns = [
+                                        r'\b(?:small|large|red|round|oval)?\s*(?:red\s+)?(?:bumps|spots|blisters|rash|lesions|swelling|patches)\b',
+                                        r'\b(?:bumps|spots|blisters|rash|lesions|swelling|patches)\b'
+                                    ]
+                                    
+                                    found_symptoms = []
+                                    for pattern in symptom_patterns:
+                                        matches = re.findall(pattern, content.lower())
+                                        found_symptoms.extend([m.strip() for m in matches if m.strip()])
+                                    
+                                    # Remove duplicates while preserving order
+                                    unique_symptoms = []
+                                    for symptom in found_symptoms:
+                                        if symptom not in unique_symptoms:
+                                            unique_symptoms.append(symptom)
+                                    
+                                    if unique_symptoms:
+                                        previous_visual_symptoms = unique_symptoms
+                                        print(f"    ✅ Found visual symptoms via text pattern: {previous_visual_symptoms}")
                                         break
-                                except:
-                                    pass
+                                except Exception as e:
+                                    print(f"    ❌ Pattern extraction failed: {e}")
                             
-                            # Method 3: Look for structured analysis results
-                            elif "Using medical analysis, here are the most likely conditions:" in content:
-                                # This indicates image analysis was performed, try to extract symptoms from context
-                                lines = content.split('\n')
-                                for line in lines:
-                                    if any(term in line.lower() for term in ["symptoms", "analysis", "found"]):
-                                        # Look for symptom-like content
-                                        if any(term in line.lower() for term in ["bumps", "spots", "blisters", "rash", "lesions"]):
-                                            # Extract potential symptoms
-                                            import re
-                                            symptom_matches = re.findall(r'\b(?:small|large|red|round|oval)?\s*(?:bumps|spots|blisters|rash|lesions|swelling|patches)\b', line.lower())
-                                            if symptom_matches:
-                                                previous_visual_symptoms = symptom_matches
-                                                break
-                                if previous_visual_symptoms:
-                                    break
+                            # Method 3: Look for any message that mentions specific visual symptoms
+                            elif any(visual_term in content.lower() for visual_term in ["red bumps", "small red", "blisters", "round spots", "rash", "skin"]):
+                                try:
+                                    # Extract common visual symptom phrases
+                                    import re
+                                    visual_phrases = re.findall(r'(?:small|large|red|round|oval)?\s*(?:red\s+)?(?:bumps|spots|blisters|rash|patches)', content.lower())
+                                    if visual_phrases:
+                                        # Clean up the phrases
+                                        cleaned_phrases = []
+                                        for phrase in visual_phrases:
+                                            cleaned = phrase.strip()
+                                            if cleaned and len(cleaned) > 3:
+                                                cleaned_phrases.append(cleaned)
+                                        
+                                        if cleaned_phrases:
+                                            previous_visual_symptoms = cleaned_phrases
+                                            print(f"    ✅ Found visual symptoms via phrase matching: {previous_visual_symptoms}")
+                                            break
+                                except Exception as e:
+                                    print(f"    ❌ Phrase extraction failed: {e}")
                     
-                    # Debug output
-                    print(f"🔍 VISUAL SYMPTOM EXTRACTION DEBUG:")
-                    print(f"   - Messages checked: {len(messages_to_check)} (excluding current user message)")
-                    print(f"   - Current user input: '{USER_PROMPT}'")
-                    print(f"   - Visual symptoms found: {previous_visual_symptoms}")
+                    print(f"🎯 FINAL VISUAL SYMPTOMS FOUND: {previous_visual_symptoms}")
                     
-                    # Only use combined analysis if we have DIFFERENT symptoms
                     user_symptoms_lower = USER_PROMPT.lower()
                     visual_symptoms_lower = ', '.join(previous_visual_symptoms).lower() if previous_visual_symptoms else ''
                     
-                    # Check if user is adding NEW symptoms (not just repeating visual ones)
                     is_adding_new_symptoms = (
                         previous_visual_symptoms and 
                         USER_PROMPT.strip() and
                         user_symptoms_lower != visual_symptoms_lower and
                         not all(symptom in user_symptoms_lower for symptom in visual_symptoms_lower.split(', ') if symptom)
                     )
-                    
-                    print(f"   - User adding new symptoms? {is_adding_new_symptoms}")
-                    print(f"   - User input: '{user_symptoms_lower}'")
-                    print(f"   - Previous visual: '{visual_symptoms_lower}'")
                     
                     enhanced_prompt = f"""
                     USER REQUEST: {USER_PROMPT}
@@ -794,15 +756,11 @@ def main_content():
                     4. ALWAYS call get_disease_description() for each disease you identify
                     5. Use the EXACT text returned by get_disease_description() - do not write your own descriptions
 
-                    CONVERSATION CONTEXT: Previous visual analysis found: {len(previous_visual_symptoms)} symptoms
-                    USER INPUT TYPE: {'Adding new symptoms' if is_adding_new_symptoms else 'Initial request or text-only'}
-
                     Remember: Only combine symptoms when user is adding NEW information to existing visual analysis.
                     """
                 else:
                     enhanced_prompt = USER_PROMPT
 
-                # Call the agent with enhanced prompt
                 if hasattr(st.session_state.assistant, 'chat'):
                     response = st.session_state.assistant.chat(enhanced_prompt)
                 else:
@@ -814,19 +772,16 @@ def main_content():
                     "has_image": HAS_IMAGE
                 })
                 
-                # Rerun to show the new messages
                 st.rerun()
 
             except Exception as e:
                 error_str = str(e).lower()
                 
-                # Handle context length exceeded error
                 if ("context_length_exceeded" in error_str or 
                     "maximum context length" in error_str or 
                     "16385 tokens" in error_str or
                     "too many tokens" in error_str):
                     
-                    # Show user-friendly message with options
                     st.error("💬 **Conversation Getting Too Long!**")
                     st.info("""
                     You've reached the conversation memory limit. Here are your options:
@@ -842,20 +797,17 @@ def main_content():
                     **✨ Your current image is still uploaded** - you can ask about it again after clearing!
                     """)
                     
-                    # Add helpful message to chat
                     ERROR_MSG = """🔄 **Conversation Memory Full**
 
 I've reached my conversation memory limit! Please click "🗑️ Clear Chat & Image" in the sidebar to start a fresh conversation.
 
 Don't worry - if you have an image uploaded, it will stay there and you can ask me to analyze it again after clearing the chat."""
 
-                # Handle rate limiting errors
                 elif "rate limit" in error_str or "quota" in error_str:
                     st.error("⏱️ **API Rate Limit Reached**")
                     st.info("Please wait a moment before trying again. The OpenAI API has usage limits.")
                     ERROR_MSG = "⏱️ I've hit a rate limit. Please wait a moment and try again."
 
-                # Handle image analysis errors
                 elif "image" in error_str and ("unsupported" in error_str or "invalid" in error_str):
                     st.error("📸 **Image Processing Issue**")
                     st.info("""
@@ -866,7 +818,6 @@ Don't worry - if you have an image uploaded, it will stay there and you can ask 
                     """)
                     ERROR_MSG = "📸 I had trouble processing your image. Please try uploading a different image or describe your symptoms in text."
 
-                # Generic error handling
                 else:
                     st.error("⚠️ **Something Went Wrong**")
                     st.info("There was an unexpected error. Try rephrasing your question or starting a new conversation.")
@@ -883,7 +834,7 @@ Don't worry - if you have an image uploaded, it will stay there and you can ask 
 # Render main content
 main_content()
 
-# FIXED: Disclaimer - now properly positioned and always visible
+# Disclaimer
 st.markdown("""
 <div class="disclaimer">
 ⚠️ <strong>Kickstart HealthIQ Disclaimer:</strong> This tool provides general information only and includes AI-powered agentic image analysis. 

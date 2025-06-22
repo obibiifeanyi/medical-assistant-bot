@@ -2,8 +2,7 @@
 Updated Medical Tools with Vision Integration
 ============================================
 
-This version integrates vision tools from the separate vision_tools module
-and focuses on core medical analysis functionality.
+This version integrates vision tools and focuses on core medical analysis functionality.
 """
 
 import json
@@ -20,9 +19,7 @@ from langchain_community.vectorstores import FAISS
 try:
     from src.vision_tools import get_vision_tools, set_vision_model
     VISION_TOOLS_AVAILABLE = True
-    print("✅ Vision tools imported successfully")
-except ImportError as e:
-    print(f"⚠️ Vision tools not available: {e}")
+except ImportError:
     VISION_TOOLS_AVAILABLE = False
 
 def safe_json_dumps(obj):
@@ -69,9 +66,6 @@ def set_global_resources(faiss_symptom_index: FAISS,
     print(f"🔧 Setting global resources...")
     print(f"📊 FAISS symptom index: {faiss_symptom_index is not None}")
     print(f"📊 FAISS severity index: {faiss_severity_index is not None}")
-    print(f"📊 Disease precautions: {df_disease_precautions is not None}")
-    print(f"📊 Disease descriptions: {df_disease_symptom_description is not None}")
-    print(f"📊 Disease severity: {df_disease_symptom_severity is not None}")
     print(f"👁️ Vision model: {vision_model is not None}")
 
     _FAISS_SYMPTOM_INDEX = faiss_symptom_index
@@ -115,18 +109,13 @@ def analyze_symptoms_direct(user_input: str) -> str:
     Direct symptom analysis using FAISS without explicit symptom extraction.
     This is the main function for analyzing user-described symptoms.
     """
-    print(f"🔍 MEDICAL TOOL CALLED: analyze_symptoms_direct")
-    print(f"📝 Input: {user_input}")
-    
     if not _FAISS_SYMPTOM_INDEX:
         result = {
             "diseases": [],
             "extracted_symptoms": [],
             "success": False,
-            "message": "Disease database not available",
-            "debug": "FAISS symptom index is None"
+            "message": "Disease database not available"
         }
-        print(f"❌ MEDICAL TOOL RESULT: {result}")
         return safe_json_dumps(result)
 
     if not user_input.strip():
@@ -134,20 +123,16 @@ def analyze_symptoms_direct(user_input: str) -> str:
             "diseases": [],
             "extracted_symptoms": [],
             "success": False,
-            "message": "No input provided",
-            "debug": "Empty user input"
+            "message": "No input provided"
         }
-        print(f"❌ MEDICAL TOOL RESULT: {result}")
         return safe_json_dumps(result)
 
     cleaned_input = clean_user_input(user_input)
-    print(f"🧹 Cleaned input: {cleaned_input}")
 
     try:
         results = _FAISS_SYMPTOM_INDEX.similarity_search_with_score(
             cleaned_input, k=15
         )
-        print(f"🔍 FAISS search returned {len(results)} results")
 
         disease_results = []
         found_symptoms = set()
@@ -196,11 +181,9 @@ def analyze_symptoms_direct(user_input: str) -> str:
             "search_query": cleaned_input,
             "original_input": user_input,
             "success": True,
-            "message": f"Found {len(unique_results[:5])} diseases via FAISS",
-            "debug": f"Processed {len(results)} results, {len(unique_results)} unique diseases"
+            "message": f"Found {len(unique_results[:5])} diseases via FAISS"
         }
         
-        print(f"✅ MEDICAL TOOL SUCCESS: Found {len(unique_results[:5])} diseases")
         return safe_json_dumps(result)
 
     except Exception as e:
@@ -208,10 +191,8 @@ def analyze_symptoms_direct(user_input: str) -> str:
             "diseases": [],
             "extracted_symptoms": [],
             "success": False,
-            "message": f"Error in direct symptom analysis: {e}",
-            "debug": f"Exception: {type(e).__name__}: {str(e)}"
+            "message": f"Error in direct symptom analysis: {e}"
         }
-        print(f"❌ MEDICAL TOOL ERROR: {result}")
         return safe_json_dumps(result)
 
 @tool
@@ -226,7 +207,7 @@ def analyze_combined_symptoms(text_symptoms: str, visual_symptoms: str) -> str:
     Returns:
         JSON string containing combined analysis results
     """
-    print(f"🔍 MEDICAL TOOL CALLED: analyze_combined_symptoms")
+    print(f"🔍 COMBINED ANALYSIS CALLED:")
     print(f"📝 Text symptoms: {text_symptoms}")
     print(f"👁️ Visual symptoms: {visual_symptoms}")
     
@@ -234,19 +215,22 @@ def analyze_combined_symptoms(text_symptoms: str, visual_symptoms: str) -> str:
     all_symptoms = []
     
     if text_symptoms and text_symptoms.strip():
-        all_symptoms.extend([s.strip() for s in text_symptoms.split(',') if s.strip()])
+        text_list = [s.strip() for s in text_symptoms.split(',') if s.strip()]
+        all_symptoms.extend(text_list)
+        print(f"📝 Added {len(text_list)} text symptoms")
     
     if visual_symptoms and visual_symptoms.strip():
-        all_symptoms.extend([s.strip() for s in visual_symptoms.split(',') if s.strip()])
+        visual_list = [s.strip() for s in visual_symptoms.split(',') if s.strip()]
+        all_symptoms.extend(visual_list)
+        print(f"👁️ Added {len(visual_list)} visual symptoms")
     
     if not all_symptoms:
         result = {
             "diseases": [],
             "success": False,
-            "message": "No symptoms provided for analysis",
-            "debug": "Both text and visual symptoms are empty"
+            "message": "No symptoms provided for analysis"
         }
-        print(f"❌ COMBINED ANALYSIS RESULT: {result}")
+        print(f"❌ COMBINED ANALYSIS FAILED: No symptoms")
         return safe_json_dumps(result)
     
     # Use combined symptoms for analysis
@@ -262,26 +246,23 @@ def analyze_combined_symptoms(text_symptoms: str, visual_symptoms: str) -> str:
         result_data["text_symptoms_count"] = len([s.strip() for s in text_symptoms.split(',') if s.strip()]) if text_symptoms else 0
         result_data["visual_symptoms_count"] = len([s.strip() for s in visual_symptoms.split(',') if s.strip()]) if visual_symptoms else 0
         result_data["combined_symptoms"] = all_symptoms
-        print(f"✅ COMBINED ANALYSIS SUCCESS: {result_data['message']}")
+        print(f"✅ COMBINED ANALYSIS SUCCESS: Found {len(result_data.get('diseases', []))} diseases")
+    else:
+        print(f"❌ COMBINED ANALYSIS FAILED: {result_data.get('message')}")
     
     return safe_json_dumps(result_data)
 
 @tool
 def analyze_symptom_severity(symptoms_list: str) -> str:
     """Analyzes the severity of symptoms using FAISS similarity and severity database."""
-    print(f"🔍 MEDICAL TOOL CALLED: analyze_symptom_severity")
-    print(f"📝 Symptoms: {symptoms_list}")
-    
     if not _FAISS_SEVERITY_INDEX or _DF_DISEASE_SYMPTOM_SEVERITY is None:
         result = {
             "severity_scores": {},
             "overall_severity": 4.0,
             "overall_level": "Moderate",
             "success": False,
-            "message": "Severity database not available",
-            "debug": f"Severity index: {_FAISS_SEVERITY_INDEX is not None}, Severity DF: {_DF_DISEASE_SYMPTOM_SEVERITY is not None}"
+            "message": "Severity database not available"
         }
-        print(f"❌ SEVERITY TOOL RESULT: {result}")
         return json.dumps(result)
 
     symptoms = [s.strip() for s in symptoms_list.split(',') if s.strip()]
@@ -292,10 +273,8 @@ def analyze_symptom_severity(symptoms_list: str) -> str:
             "overall_severity": 4.0,
             "overall_level": "Moderate",
             "success": False,
-            "message": "No symptoms provided",
-            "debug": "Empty symptoms list"
+            "message": "No symptoms provided"
         }
-        print(f"❌ SEVERITY TOOL RESULT: {result}")
         return json.dumps(result)
 
     def classify_severity(severity_score: float) -> str:
@@ -364,23 +343,17 @@ def analyze_symptom_severity(symptoms_list: str) -> str:
         "message": f"Analyzed severity for {len(symptoms)} symptoms"
     }
     
-    print(f"✅ SEVERITY TOOL SUCCESS: {result['message']}")
     return json.dumps(result)
 
 @tool
 def get_disease_precautions(disease_name: str) -> str:
     """Gets precautions and preventive measures for a specific disease."""
-    print(f"🔍 MEDICAL TOOL CALLED: get_disease_precautions")
-    print(f"🦠 Disease: {disease_name}")
-    
     if _DF_DISEASE_PRECAUTIONS is None:
         result = {
             "precautions": "Precautions database not available.",
             "success": False,
-            "message": "Database not available",
-            "debug": "Disease precautions DataFrame is None"
+            "message": "Database not available"
         }
-        print(f"❌ PRECAUTIONS TOOL RESULT: {result}")
         return json.dumps(result)
 
     try:
@@ -393,33 +366,25 @@ def get_disease_precautions(disease_name: str) -> str:
             "success": True,
             "message": f"Found precautions for {disease_name}"
         }
-        print(f"✅ PRECAUTIONS TOOL SUCCESS: {result['message']}")
         return json.dumps(result)
 
     except (IndexError, KeyError) as e:
         result = {
             "precautions": "No specific precautions found for this condition.",
             "success": False,
-            "message": f"No precautions found for {disease_name}",
-            "debug": f"Exception: {type(e).__name__}: {str(e)}"
+            "message": f"No precautions found for {disease_name}"
         }
-        print(f"❌ PRECAUTIONS TOOL RESULT: {result}")
         return json.dumps(result)
 
 @tool
 def get_disease_description(disease_name: str) -> str:
     """Gets detailed description for a specific disease."""
-    print(f"🔍 MEDICAL TOOL CALLED: get_disease_description")
-    print(f"🦠 Disease: {disease_name}")
-    
     if _DF_DISEASE_SYMPTOM_DESCRIPTION is None:
         result = {
             "description": "Description database not available.",
             "success": False,
-            "message": "Database not available",
-            "debug": "Disease description DataFrame is None"
+            "message": "Database not available"
         }
-        print(f"❌ DESCRIPTION TOOL RESULT: {result}")
         return json.dumps(result)
 
     try:
@@ -440,10 +405,8 @@ def get_disease_description(disease_name: str) -> str:
             result = {
                 "description": f"Unable to find appropriate columns. Available: {list(_DF_DISEASE_SYMPTOM_DESCRIPTION.columns)}",
                 "success": False,
-                "message": "Column structure issue",
-                "debug": f"Disease col: {disease_col}, Desc col: {desc_col}"
+                "message": "Column structure issue"
             }
-            print(f"❌ DESCRIPTION TOOL RESULT: {result}")
             return json.dumps(result)
 
         description = _DF_DISEASE_SYMPTOM_DESCRIPTION[
@@ -455,17 +418,14 @@ def get_disease_description(disease_name: str) -> str:
             "success": True,
             "message": f"Found description for {disease_name}"
         }
-        print(f"✅ DESCRIPTION TOOL SUCCESS: {result['message']}")
         return json.dumps(result)
 
     except (IndexError, KeyError) as e:
         result = {
             "description": f"No detailed description found for {disease_name}.",
             "success": False,
-            "message": f"No description found for {disease_name}",
-            "debug": f"Exception: {type(e).__name__}: {str(e)}"
+            "message": f"No description found for {disease_name}"
         }
-        print(f"❌ DESCRIPTION TOOL RESULT: {result}")
         return json.dumps(result)
 
 # ===============================
@@ -492,13 +452,6 @@ def get_enhanced_medical_tools():
     if VISION_TOOLS_AVAILABLE:
         vision_tools = get_vision_tools()
         medical_tools.extend(vision_tools)
-        print(f"✅ Added {len(vision_tools)} vision tools to medical tools")
-    else:
-        print("⚠️ Vision tools not available - using medical tools only")
-    
-    print(f"📋 Total tools available: {len(medical_tools)}")
-    for tool in medical_tools:
-        print(f"  - {tool.name}")
     
     return medical_tools
 
@@ -519,55 +472,4 @@ def check_resources_available() -> Dict[str, bool]:
     else:
         resources['vision_model'] = False
     
-    print(f"📊 Resource availability: {resources}")
     return resources
-
-def debug_tools():
-    """Debug function to test tool availability and functionality."""
-    print("=== DEBUGGING MEDICAL TOOLS ===")
-    
-    # Check resources
-    print("\n1. Checking resource availability...")
-    resources = check_resources_available()
-    
-    # Test getting tools
-    print("\n2. Getting enhanced medical tools...")
-    tools = get_enhanced_medical_tools()
-    
-    # Test a simple tool call
-    print("\n3. Testing analyze_symptoms_direct...")
-    if _FAISS_SYMPTOM_INDEX:
-        result = analyze_symptoms_direct("fever and headache")
-        print(f"Test result: {result[:200]}...")
-    else:
-        print("Cannot test - FAISS index not available")
-    
-    # Test vision tools if available
-    if VISION_TOOLS_AVAILABLE:
-        print("\n4. Testing vision tools...")
-        from src.vision_tools import test_vision_tools
-        test_vision_tools()
-    else:
-        print("\n4. Vision tools not available for testing")
-    
-    print("\n=== MEDICAL TOOLS DEBUG COMPLETE ===")
-
-if __name__ == "__main__":
-    print("Updated Medical Tools with Vision Integration loaded!")
-    print("=" * 60)
-    print("Core medical tools:")
-    print("- analyze_symptoms_direct(user_input)")
-    print("- analyze_combined_symptoms(text_symptoms, visual_symptoms)")
-    print("- analyze_symptom_severity(symptoms_list)")
-    print("- get_disease_precautions(disease_name)")
-    print("- get_disease_description(disease_name)")
-    
-    if VISION_TOOLS_AVAILABLE:
-        print("\nVision tools:")
-        print("- analyze_medical_image(image_base64, additional_context)")
-        print("- analyze_visual_symptoms(visual_symptoms_list)")
-        print("\n✅ All tools including vision are available")
-    else:
-        print("\n⚠️ Vision tools not available")
-    
-    print("\nDebug function: debug_tools()")

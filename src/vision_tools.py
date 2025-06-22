@@ -2,7 +2,7 @@
 Fixed Vision Tools for Medical Image Analysis
 ============================================
 
-This version fixes the image processing and error handling issues.
+Vision tools for medical image analysis and symptom extraction.
 """
 
 import json
@@ -23,7 +23,6 @@ def set_vision_model(vision_model: Optional[ChatOpenAI]):
     """Set the global vision model for image analysis tools."""
     global _VISION_MODEL
     _VISION_MODEL = vision_model
-    print(f"🔧 Vision model set: {vision_model is not None}")
 
 def get_vision_model():
     """Get the current vision model."""
@@ -215,49 +214,6 @@ def validate_base64_image(image_base64: str) -> dict:
         
     except Exception as e:
         return {'valid': False, 'error': f'Image validation failed: {str(e)}'}
-    """
-    Validate and process base64 image data.
-    
-    Returns:
-        dict: {'valid': bool, 'format': str, 'size': int, 'error': str}
-    """
-    try:
-        if not image_base64:
-            return {'valid': False, 'error': 'No image data provided'}
-        
-        # Remove data URL prefix if present
-        if image_base64.startswith('data:'):
-            # Extract just the base64 part
-            if ',' in image_base64:
-                image_base64 = image_base64.split(',', 1)[1]
-        
-        # Validate base64 encoding
-        try:
-            decoded = base64.b64decode(image_base64)
-        except Exception as e:
-            return {'valid': False, 'error': f'Invalid base64 encoding: {str(e)}'}
-        
-        # Check image format by magic bytes
-        image_format = 'unknown'
-        if decoded.startswith(b'\xFF\xD8\xFF'):
-            image_format = 'jpeg'
-        elif decoded.startswith(b'\x89PNG\r\n\x1a\n'):
-            image_format = 'png'
-        elif decoded.startswith(b'GIF87a') or decoded.startswith(b'GIF89a'):
-            image_format = 'gif'
-        elif decoded.startswith(b'RIFF') and b'WEBP' in decoded[:12]:
-            image_format = 'webp'
-        
-        return {
-            'valid': True,
-            'format': image_format,
-            'size': len(decoded),
-            'base64_clean': image_base64,
-            'error': None
-        }
-        
-    except Exception as e:
-        return {'valid': False, 'error': f'Image validation failed: {str(e)}'}
 
 @tool
 def analyze_medical_image(image_base64: str, additional_context: str = "") -> str:
@@ -272,19 +228,13 @@ def analyze_medical_image(image_base64: str, additional_context: str = "") -> st
     Returns:
         JSON string containing extracted visible symptoms for medical analysis
     """
-    print(f"🔍 VISION TOOL CALLED: analyze_medical_image")
-    print(f"📷 Image data length: {len(image_base64) if image_base64 else 0}")
-    print(f"📝 Context: {additional_context}")
-    
     if not _VISION_MODEL:
         result = {
             "visible_symptoms": [],
             "analysis_summary": "Vision analysis not available - OpenAI vision model not configured",
             "success": False,
-            "message": "Vision model not available",
-            "debug": "Vision model is None"
+            "message": "Vision model not available"
         }
-        print(f"❌ VISION TOOL RESULT: {result}")
         return json.dumps(result)
     
     # Validate image data
@@ -294,17 +244,11 @@ def analyze_medical_image(image_base64: str, additional_context: str = "") -> st
             "visible_symptoms": [],
             "analysis_summary": f"Invalid image data: {validation['error']}",
             "success": False,
-            "message": "Invalid image data",
-            "debug": validation['error']
+            "message": "Invalid image data"
         }
-        print(f"❌ VISION TOOL RESULT: {result}")
         return json.dumps(result)
     
-    print(f"✅ Image validation passed: {validation['format']}, {validation['size']} bytes")
-    
     try:
-        print("🚀 Calling OpenAI Vision API...")
-        
         # Determine MIME type based on format
         mime_type = "image/jpeg"  # Default
         if validation['format'] == 'png':
@@ -370,22 +314,16 @@ Respond with a simple comma-separated list using everyday language that a patien
         max_retries = 2
         for attempt in range(max_retries + 1):
             try:
-                print(f"📤 Attempt {attempt + 1}/{max_retries + 1}: Sending request to OpenAI with MIME type: {mime_type}")
-                
                 response = _VISION_MODEL.invoke(messages)
                 response_text = response.content.strip()
-                print(f"✅ OpenAI Vision Response: {response_text}")
                 break  # Success, exit retry loop
                 
             except Exception as api_error:
                 error_str = str(api_error).lower()
-                print(f"❌ OpenAI API Error (attempt {attempt + 1}): {str(api_error)}")
                 
                 # Check for specific error types
                 if "unsupported image" in error_str or "image_parse_error" in error_str:
                     if attempt < max_retries:
-                        print("🔄 Retrying with different approach...")
-                        
                         # Try with a different detail level
                         messages[0]["content"][1]["image_url"]["detail"] = "low" if attempt == 0 else "auto"
                         continue
@@ -396,7 +334,6 @@ Respond with a simple comma-separated list using everyday language that a patien
                             "analysis_summary": "OpenAI Vision API rejected this image format. This can happen with certain JPEG compression types or corrupted images.",
                             "success": False,
                             "message": "Image format not accepted by Vision API",
-                            "debug": f"API Error after {max_retries + 1} attempts: {str(api_error)}",
                             "suggestion": "Try saving the image in a different format (PNG) or taking a new photo."
                         }
                         return json.dumps(result)
@@ -406,23 +343,20 @@ Respond with a simple comma-separated list using everyday language that a patien
                         "visible_symptoms": [],
                         "analysis_summary": "OpenAI API rate limit or quota exceeded. Please wait a moment and try again.",
                         "success": False,
-                        "message": "API rate limit exceeded",
-                        "debug": f"Rate limit error: {str(api_error)}"
+                        "message": "API rate limit exceeded"
                     }
                     return json.dumps(result)
                     
                 else:
                     # Other API errors
                     if attempt < max_retries:
-                        print("🔄 Retrying API call...")
                         continue
                     else:
                         result = {
                             "visible_symptoms": [],
                             "analysis_summary": f"OpenAI Vision API error: {str(api_error)}",
                             "success": False,
-                            "message": "Vision API call failed",
-                            "debug": f"API Error: {str(api_error)}"
+                            "message": "Vision API call failed"
                         }
                         return json.dumps(result)
         
@@ -465,10 +399,7 @@ Respond with a simple comma-separated list using everyday language that a patien
         has_technical_terms = any(term in cleaned_response for term in technical_terms)
         
         if has_technical_terms:
-            print(f"🔄 Translating technical terms to common language...")
             symptoms = translate_medical_to_common_terms(raw_symptoms)
-            print(f"📝 Original: {raw_symptoms}")
-            print(f"🔄 Translated: {symptoms}")
         else:
             symptoms = raw_symptoms
         
@@ -490,8 +421,6 @@ Respond with a simple comma-separated list using everyday language that a patien
             "message": f"Successfully extracted {len(symptoms)} visible symptoms"
         }
         
-        print(f"✅ VISION TOOL SUCCESS: Found symptoms: {symptoms}")
-        
         return json.dumps(result)
         
     except Exception as e:
@@ -499,10 +428,8 @@ Respond with a simple comma-separated list using everyday language that a patien
             "visible_symptoms": [],
             "analysis_summary": f"Error during image analysis: {str(e)}",
             "success": False,
-            "message": f"Image analysis failed: {str(e)}",
-            "debug": f"Exception: {type(e).__name__}: {str(e)}"
+            "message": f"Image analysis failed: {str(e)}"
         }
-        print(f"❌ VISION TOOL ERROR: {result}")
         return json.dumps(result)
 
 @tool  
@@ -516,9 +443,6 @@ def analyze_visual_symptoms(visual_symptoms_list: str) -> str:
     Returns:
         JSON string with symptom analysis
     """
-    print(f"🔍 VISION TOOL CALLED: analyze_visual_symptoms")
-    print(f"📝 Symptoms: {visual_symptoms_list}")
-    
     if not visual_symptoms_list or not visual_symptoms_list.strip():
         result = {
             "symptom_analysis": "No visual symptoms provided for analysis",
@@ -561,7 +485,6 @@ def analyze_visual_symptoms(visual_symptoms_list: str) -> str:
         "message": f"Visual symptom analysis completed for {len(symptoms)} symptoms"
     }
     
-    print(f"✅ VISUAL SYMPTOM ANALYSIS SUCCESS")
     return json.dumps(result)
 
 def get_vision_tools():
@@ -575,35 +498,3 @@ def get_vision_tools():
         analyze_medical_image,
         analyze_visual_symptoms
     ]
-
-def test_vision_tools():
-    """Test vision tools with debug output."""
-    print("=== TESTING ENHANCED VISION TOOLS ===")
-    
-    # Test image validation
-    print("\n1. Testing image validation...")
-    test_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-    validation = validate_base64_image(test_base64)
-    print(f"Validation result: {validation}")
-    
-    # Test with mock data
-    print("\n2. Testing analyze_medical_image with mock data...")
-    result1 = analyze_medical_image("mock_base64_data", "test context")
-    print(f"Result 1: {result1}")
-    
-    print("\n3. Checking vision model availability...")
-    print(f"Vision model available: {_VISION_MODEL is not None}")
-    
-    print("\n=== ENHANCED VISION TOOLS TEST COMPLETE ===")
-
-if __name__ == "__main__":
-    print("Enhanced Vision Tools for Medical Image Analysis loaded!")
-    print("Available tools:")
-    for tool in get_vision_tools():
-        print(f"- {tool.name}: {tool.description}")
-    print("\nKey improvements:")
-    print("- Better image validation")
-    print("- Proper MIME type detection")
-    print("- Enhanced error handling")
-    print("- Cleaner base64 processing")
-    print("\nTest function: test_vision_tools()")
