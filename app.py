@@ -1,8 +1,8 @@
 """
-Kickstart HealthIQ Streamlit App - PRODUCTION VERSION
+Kickstart HealthIQ Streamlit App - CLEANED VERSION
 ===================================================
 
-Clean production version with all debugging removed.
+Clean production version with crossed-out elements removed.
 """
 
 import os
@@ -54,13 +54,14 @@ st.markdown("""
     .disclaimer {
         position: sticky;
         bottom: 0;
-        background: #2d2d2d;
-        color: white;
+        background: var(--secondary-background-color);
+        color: var(--text-color);
         padding: 1rem;
         text-align: center;
-        border-top: 2px solid #555;
+        border-top: 2px solid var(--primary-color);
         margin-top: 2rem;
         font-size: 0.85rem;
+        border-radius: 8px 8px 0 0;
     }
     
     .stButton > button {
@@ -72,7 +73,7 @@ st.markdown("""
 
 # Title
 st.title("🏥 Kickstart HealthIQ Chatbot")
-st.markdown("*Now with GPT-4o for enhanced image analysis*")
+st.markdown("*AI-powered medical analysis with image recognition*")
 
 def clear_all_data():
     """Clear all chat and image data."""
@@ -170,7 +171,8 @@ try:
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_openai import ChatOpenAI
     
-    st.success("✅ All modules imported successfully")
+    # Only show success message if there were previous errors or in debug mode
+    # st.success("✅ All modules imported successfully")  # Hidden for clean UI
     
 except ImportError as e:
     st.error(f"❌ Error importing modules: {str(e)}")
@@ -282,19 +284,6 @@ with st.sidebar:
         help="Upload an image of visible symptoms. Maximum file size: 1MB",
         key=f"image_uploader_{st.session_state.uploader_key}"
     )
-    
-    # Show file size guidance
-    st.caption("💡 **Tip:** For best results:")
-    st.caption("• Use JPEG or PNG format")
-    st.caption("• Keep file size under 1MB")
-    st.caption("• Focus on the affected area")
-    st.caption("• Ensure good lighting")
-
-    image_context = st.text_area(
-        "Additional Context",
-        placeholder="Describe symptoms, timing, etc.",
-        help="Additional context about the image"
-    )
 
     if uploaded_file is not None:
         st.session_state.uploaded_image = uploaded_file
@@ -363,7 +352,8 @@ def load_resources():
                     temperature=0.1,
                     max_tokens=4000
                 )
-                st.info("✅ Using GPT-4o (128k context)")
+                # Only show model info on errors or debug mode
+                # st.info("✅ Using GPT-4o")  # Hidden for clean UI
             except Exception as e1:
                 try:
                     vision_model = ChatOpenAI(
@@ -371,7 +361,7 @@ def load_resources():
                         temperature=0.1,
                         max_tokens=4000
                     )
-                    st.info("✅ Using GPT-4 Turbo")
+                    st.info("✅ Using GPT-4 Turbo (GPT-4o unavailable)")
                 except Exception as e2:
                     try:
                         vision_model = ChatOpenAI(
@@ -481,7 +471,6 @@ def main_content():
                     USER REQUEST: {USER_PROMPT}
 
                     UPLOADED IMAGE DATA: {st.session_state.image_base64}
-                    ADDITIONAL CONTEXT: {image_context}
 
                     INSTRUCTIONS:
                     1. If analyzing image: Use analyze_medical_image() first
