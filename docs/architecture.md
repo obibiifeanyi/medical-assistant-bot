@@ -22,10 +22,12 @@ The system prompt includes comprehensive instructions that enable the Language M
 
 ### Step 3: Data Store Access
 The retrieval agent connects to multiple specialized data repositories:
+- **Image Symptom Extraction**: OpenAI Vision for analysis and assessment of imaged conditions
 - **Disease Symptoms Database**: Vector-based FAISS index containing symptom-disease mappings
 - **Symptom Severity Database**: Vector-based FAISS index with severity classifications
 - **Disease Descriptions**: Comma-separated value files containing detailed disease information
 - **Disease Precautions**: CSV files with preventive measures and care instructions
+
 
 ### Step 4: Information Sufficiency Assessment
 The Language Model evaluates whether the retrieved information from Step 3 is sufficient to generate a comprehensive response. This decision point determines the next course of action in the diagnostic process.
@@ -51,10 +53,11 @@ The chat memory component ensures continuity in conversations, allowing users to
 ## Key Features
 
 - **Multi-Source Data Integration**: Combines vector databases and structured files for comprehensive medical knowledge
+- **Multi-Agent / Multi-modal**: Combines multiple agents for text, image multi-modal analysis
 - **Conversational Memory**: Maintains context across multiple interactions
 - **Adaptive Information Retrieval**: Dynamically fetches additional data based on user needs
 - **Iterative Diagnostic Process**: Supports ongoing dialogue for refined diagnosis and information gathering
 
 ## Usage Flow
 
-The system supports both single-query interactions and extended diagnostic conversations, making it suitable for initial symptom assessment as well as detailed medical information exploration. Users can engage with the system multiple times, building upon previous conversations to gain deeper insights into potential medical conditions and appropriate precautionary measures.
+The system supports both single-query interactions, combination queries with image and text and extended diagnostic conversations, making it suitable for initial symptom assessment as well as detailed medical information exploration. Users can engage with the system multiple times, building upon previous conversations to gain deeper insights into potential medical conditions and appropriate precautionary measures, or clear and start over.
