@@ -73,7 +73,7 @@ st.markdown("""
 
 # Title
 st.title("🏥 Kickstart HealthIQ Chatbot")
-st.markdown("*AI-powered medical analysis with image recognition*")
+st.markdown("*AI-powered medical insights with multimodal, multi-agent intelligence.*")
 
 def clear_all_data():
     """Clear all chat and image data."""
@@ -92,27 +92,34 @@ def clear_all_data():
 
 def manage_conversation_memory():
     """Automatically manage conversation memory."""
-    if len(st.session_state.messages) > 15:
-        total_chars = sum(len(msg["content"]) for msg in st.session_state.messages)
-        estimated_tokens = total_chars // 4
-        
-        if estimated_tokens > 100000:
-            st.info("🔄 Auto-trimming old messages...")
+    try:
+        if len(st.session_state.messages) > 15:
+            # Create a copy of messages to avoid dictionary changed size error
+            messages_copy = list(st.session_state.messages)
+            total_chars = sum(len(msg.get("content", "")) for msg in messages_copy)
+            estimated_tokens = total_chars // 4
             
-            if len(st.session_state.messages) > 10:
-                first_msg = st.session_state.messages[0]
-                recent_msgs = st.session_state.messages[-8:]
+            if estimated_tokens > 100000:
+                st.info("🔄 Auto-trimming old messages...")
                 
-                transition_msg = {
-                    "role": "assistant",
-                    "content": "📝 *[Earlier conversation trimmed - conversation continues below]*",
-                    "has_image": False
-                }
-                
-                st.session_state.messages = [first_msg, transition_msg] + recent_msgs
-                
-                if hasattr(st.session_state.assistant, 'reset_conversation'):
-                    st.session_state.assistant.reset_conversation()
+                if len(messages_copy) > 10:
+                    first_msg = messages_copy[0]
+                    recent_msgs = messages_copy[-8:]
+                    
+                    transition_msg = {
+                        "role": "assistant",
+                        "content": "📝 *[Earlier conversation trimmed - conversation continues below]*",
+                        "has_image": False
+                    }
+                    
+                    # Update session state with new list
+                    st.session_state.messages = [first_msg, transition_msg] + recent_msgs
+                    
+                    if hasattr(st.session_state, 'assistant') and st.session_state.assistant and hasattr(st.session_state.assistant, 'reset_conversation'):
+                        st.session_state.assistant.reset_conversation()
+    except Exception as e:
+        # Silently handle any memory management errors
+        pass
 
 def check_files():
     """Check if all required files are present."""
@@ -170,6 +177,7 @@ try:
     from langchain_community.vectorstores import FAISS
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_openai import ChatOpenAI
+    from langchain.tools import tool
     
     # Only show success message if there were previous errors or in debug mode
     # st.success("✅ All modules imported successfully")  # Hidden for clean UI
@@ -177,6 +185,35 @@ try:
 except ImportError as e:
     st.error(f"❌ Error importing modules: {str(e)}")
     st.stop()
+
+# Create a custom tool for image analysis that accesses session state
+@tool
+def analyze_current_uploaded_image(additional_context: str = "") -> str:
+    """
+    Analyze the currently uploaded medical image in the Streamlit session.
+    This tool accesses the image data from the current session state.
+    
+    Args:
+        additional_context: Optional additional context about the image
+        
+    Returns:
+        JSON string containing extracted visible symptoms for medical analysis
+    """
+    # Import vision tools
+    try:
+        import src.vision_tools as vision_tools
+        
+        # Get image data from session state
+        image_data = getattr(st.session_state, 'image_base64', None)
+        
+        if not image_data:
+            return '{"visible_symptoms": [], "success": false, "message": "No image uploaded in current session"}'
+        
+        # Call the vision tool with the image data
+        return vision_tools.analyze_medical_image.func(image_data, additional_context)
+        
+    except Exception as e:
+        return f'{{"visible_symptoms": [], "success": false, "message": "Error analyzing image: {str(e)}"}}'
 
 def encode_image_to_base64(image_file) -> Optional[str]:
     """Convert uploaded image to base64 string without processing."""
@@ -302,14 +339,19 @@ with st.sidebar:
 
     message_count = len(st.session_state.messages)
     if message_count > 0:
-        total_chars = sum(len(msg["content"]) for msg in st.session_state.messages)
-        estimated_tokens = total_chars // 4
-        
-        if estimated_tokens > 100000:
-            st.warning(f"💬 Very long conversation ({message_count} messages)")
-        elif estimated_tokens > 50000:
-            st.info(f"💬 Long conversation ({message_count} messages)")
-        else:
+        try:
+            # Create a copy to avoid iteration issues
+            messages_copy = list(st.session_state.messages)
+            total_chars = sum(len(msg.get("content", "")) for msg in messages_copy)
+            estimated_tokens = total_chars // 4
+            
+            if estimated_tokens > 100000:
+                st.warning(f"💬 Very long conversation ({message_count} messages)")
+            elif estimated_tokens > 50000:
+                st.info(f"💬 Long conversation ({message_count} messages)")
+            else:
+                st.caption(f"💬 {message_count} messages")
+        except Exception:
             st.caption(f"💬 {message_count} messages")
     
     if st.button("🗑️ Clear Chat & Image", use_container_width=True):
@@ -385,8 +427,15 @@ def load_resources():
         st.error("Error loading resources")
         return None
 
+# Replace the init_assistant() function in your app.py with this:
+
+def get_session_image_data():
+    """Get image data from Streamlit session state"""
+    return getattr(st.session_state, 'image_base64', None)
+
 def init_assistant():
-    """Initialize the assistant."""
+    """Initialize the assistant with session-aware image tools."""
+    
     if not (os.getenv('OPENAI_API_KEY') or check_api_key_available()):
         st.warning("⚠️ Please enter your OpenAI API key")
         return False
@@ -397,6 +446,16 @@ def init_assistant():
 
         if resources:
             try:
+                # First, configure vision tools to access session state
+                import src.vision_tools as vision_tools
+                vision_tools.set_image_data_accessor(get_session_image_data)
+                print("✅ Vision tools configured for session access")
+                
+                # Get standard medical tools
+                from src.medical_tools import get_enhanced_medical_tools
+                standard_tools = get_enhanced_medical_tools()
+                
+                # Create the assistant
                 st.session_state.assistant = create_medical_assistant(
                     faiss_symptom_index=resources['symptom_index'],
                     faiss_severity_index=resources['severity_index'],
@@ -407,14 +466,23 @@ def init_assistant():
                     model_name="gpt-4o",
                     use_memory=True
                 )
+                
+                # The vision tools are already included in get_enhanced_medical_tools()
+                # and now they're configured to access session state properly
+                
+                print("✅ Assistant initialized with session-aware tools")
                 return True
-            except Exception:
-                st.error("Failed to initialize assistant")
+                
+            except Exception as e:
+                st.error(f"Failed to initialize assistant: {str(e)}")
+                print(f"❌ Assistant initialization error: {e}")
                 return False
     return True
 
+# Also update your main_content() function to use cleaner prompts:
+
 def main_content():
-    """Render main content."""
+    """Render main content with fixed image handling."""
     
     if not init_assistant():
         st.error("❌ Assistant not initialized. Check your API key.")
@@ -423,22 +491,21 @@ def main_content():
     st.markdown("### 💬 Chat History")
     
     if st.session_state.messages:
-        for msg in st.session_state.messages:
-            with st.chat_message(msg["role"]):
-                if msg.get("has_image", False):
-                    st.caption("📸 *Message includes uploaded image*")
-                st.write(msg["content"])
+        try:
+            for msg in st.session_state.messages:
+                with st.chat_message(msg["role"]):
+                    if msg.get("has_image", False):
+                        st.caption("📸 *Message includes uploaded image*")
+                    st.write(msg.get("content", ""))
+        except Exception:
+            st.info(f"Chat history available ({len(st.session_state.messages)} messages)")
     else:
         st.markdown("### 👋 Welcome to Kickstart HealthIQ!")
         st.markdown("""
-        **🤖 AI Features:**
-        - Intelligent medical analysis
-        - Real image analysis with GPT-4o
-        - Comprehensive diagnosis
-        
+
         **🎯 To get started:**
-        1. Upload an image (optional)
-        2. Describe your symptoms
+        1. Describe your symptoms
+        2. Upload an image (optional)
         3. Get AI analysis
         """)
     
@@ -466,17 +533,18 @@ def main_content():
 
         with st.spinner("Analyzing..."):
             try:
+                # Clean prompt without base64 data - the tools will get it from session
                 if HAS_IMAGE:
                     enhanced_prompt = f"""
                     USER REQUEST: {USER_PROMPT}
 
-                    UPLOADED IMAGE DATA: {st.session_state.image_base64}
-
-                    INSTRUCTIONS:
-                    1. If analyzing image: Use analyze_medical_image() first
-                    2. If combining symptoms: Use analyze_combined_symptoms()
+                    INSTRUCTIONS: An image has been uploaded and is available in the session.
+                    1. Use analyze_medical_image() to extract visible symptoms from the uploaded image
+                    2. If the user also provided text symptoms, use analyze_combined_symptoms() 
                     3. Always call get_disease_description() for diseases found
                     4. Use exact text from get_disease_description()
+                    
+                    The image is ready for analysis.
                     """
                 else:
                     enhanced_prompt = USER_PROMPT
@@ -513,6 +581,7 @@ def main_content():
                 })
                 st.rerun()
 
+
 # Run main content
 main_content()
 
@@ -520,7 +589,6 @@ main_content()
 st.markdown("""
 <div class="disclaimer">
 ⚠️ <strong>Disclaimer:</strong> This tool provides general information only. 
-Visual analysis is for informational purposes and should not replace professional medical examination. 
 Always consult healthcare professionals for proper diagnosis and treatment.
 </div>
 """, unsafe_allow_html=True)

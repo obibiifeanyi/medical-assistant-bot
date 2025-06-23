@@ -39,7 +39,7 @@ A conversational AI medical assistant that can analyze symptoms, identify possib
 ## Technology Stack
 
 - **Frontend**: Streamlit
-- **LLM**: OpenAI GPT-3.5/GPT-4
+- **LLM**: OpenAI GPT-3.5/GPT-4.1
 - **Framework**: LangChain
 - **Vector Search**: FAISS
 - **Embeddings**: Sentence Transformers (all-MiniLM-L6-v2)

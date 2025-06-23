@@ -1,14 +1,14 @@
 """
-Fixed Vision Tools for Medical Image Analysis
-============================================
+Updated Vision Tools for Medical Image Analysis
+==============================================
 
-Vision tools for medical image analysis and symptom extraction.
+Fixed version that properly gets image data from session state.
 """
 
 import json
 import re
 import warnings
-from typing import Optional
+from typing import Optional, Callable
 import base64
 
 from langchain.tools import tool
@@ -16,27 +16,43 @@ from langchain_openai import ChatOpenAI
 
 warnings.filterwarnings('ignore')
 
-# Global vision model
+# Global vision model and image data accessor
 _VISION_MODEL = None
+_IMAGE_DATA_ACCESSOR = None
 
 def set_vision_model(vision_model: Optional[ChatOpenAI]):
     """Set the global vision model for image analysis tools."""
     global _VISION_MODEL
     _VISION_MODEL = vision_model
 
+def set_image_data_accessor(accessor_func: Callable):
+    """Set the function to access current image data."""
+    global _IMAGE_DATA_ACCESSOR
+    _IMAGE_DATA_ACCESSOR = accessor_func
+    print(f"🔧 Image data accessor set: {accessor_func is not None}")
+
 def get_vision_model():
     """Get the current vision model."""
     return _VISION_MODEL
 
+def get_current_image_data():
+    """Get the current image data from session state."""
+    if _IMAGE_DATA_ACCESSOR:
+        try:
+            data = _IMAGE_DATA_ACCESSOR()
+            print(f"📷 Retrieved image data: {data is not None}")
+            if data:
+                print(f"📊 Image data length: {len(data)} characters")
+            return data
+        except Exception as e:
+            print(f"❌ Error accessing image data: {e}")
+            return None
+    print("❌ No image data accessor configured")
+    return None
+
 def translate_medical_to_common_terms(technical_symptoms: list) -> list:
     """
     Translate technical medical terminology to common language that matches the FAISS database.
-    
-    Args:
-        technical_symptoms: List of technical medical terms from vision analysis
-        
-    Returns:
-        List of common symptom descriptions
     """
     
     # Medical term to common language mapping
@@ -142,13 +158,9 @@ def translate_medical_to_common_terms(technical_symptoms: list) -> list:
     
     return final_symptoms
 
-
 def validate_base64_image(image_base64: str) -> dict:
     """
     Validate and process base64 image data with enhanced checks.
-    
-    Returns:
-        dict: {'valid': bool, 'format': str, 'size': int, 'error': str}
     """
     try:
         if not image_base64:
@@ -156,11 +168,10 @@ def validate_base64_image(image_base64: str) -> dict:
         
         # Remove data URL prefix if present
         if image_base64.startswith('data:'):
-            # Extract just the base64 part
             if ',' in image_base64:
                 image_base64 = image_base64.split(',', 1)[1]
         
-        # Clean up any whitespace or newlines that might cause issues
+        # Clean up any whitespace or newlines
         image_base64 = image_base64.strip().replace('\n', '').replace('\r', '').replace(' ', '')
         
         # Validate base64 encoding
@@ -169,15 +180,15 @@ def validate_base64_image(image_base64: str) -> dict:
         except Exception as e:
             return {'valid': False, 'error': f'Invalid base64 encoding: {str(e)}'}
         
-        # Check minimum size (very small images can cause API issues)
-        if len(decoded) < 1000:  # Less than 1KB is suspicious
+        # Check minimum size
+        if len(decoded) < 1000:
             return {'valid': False, 'error': f'Image too small: {len(decoded)} bytes'}
         
-        # Check maximum size (OpenAI has limits)
-        if len(decoded) > 20 * 1024 * 1024:  # 20MB limit
+        # Check maximum size
+        if len(decoded) > 20 * 1024 * 1024:
             return {'valid': False, 'error': f'Image too large: {len(decoded)} bytes'}
         
-        # Check image format by magic bytes with better detection
+        # Check image format by magic bytes
         image_format = 'unknown'
         if decoded.startswith(b'\xFF\xD8\xFF'):
             image_format = 'jpeg'
@@ -188,20 +199,16 @@ def validate_base64_image(image_base64: str) -> dict:
         elif decoded.startswith(b'RIFF') and b'WEBP' in decoded[:12]:
             image_format = 'webp'
         elif decoded.startswith(b'BM'):
-            # BMP format - convert to unsupported
             return {'valid': False, 'error': 'BMP format not supported by OpenAI Vision API'}
         elif decoded.startswith(b'\xFF\xE0') or decoded.startswith(b'\xFF\xE1'):
-            # JPEG variant
             image_format = 'jpeg'
         
-        # Reject unknown formats
         if image_format == 'unknown':
             return {'valid': False, 'error': 'Unknown or unsupported image format'}
         
-        # Additional validation for JPEG images (common source of issues)
+        # Additional validation for JPEG images
         if image_format == 'jpeg':
-            # Check for valid JPEG structure
-            if not (b'\xFF\xD9' in decoded[-10:]):  # JPEG end marker
+            if not (b'\xFF\xD9' in decoded[-10:]):
                 return {'valid': False, 'error': 'Corrupted JPEG file - missing end marker'}
         
         return {
@@ -216,18 +223,19 @@ def validate_base64_image(image_base64: str) -> dict:
         return {'valid': False, 'error': f'Image validation failed: {str(e)}'}
 
 @tool
-def analyze_medical_image(image_base64: str, additional_context: str = "") -> str:
+def analyze_medical_image(additional_context: str = "") -> str:
     """
-    Analyze a medical image to extract visible symptoms that can be used for medical diagnosis.
-    Returns focused symptom list for further medical analysis.
+    Analyze the currently uploaded medical image to extract visible symptoms.
+    Gets image data from session state instead of parameters.
     
     Args:
-        image_base64: Base64 encoded image data
-        additional_context: Additional context about the image or symptoms
+        additional_context: Optional additional context about the image
         
     Returns:
         JSON string containing extracted visible symptoms for medical analysis
     """
+    print(f"🔍 ANALYZE_MEDICAL_IMAGE CALLED with context: '{additional_context}'")
+    
     if not _VISION_MODEL:
         result = {
             "visible_symptoms": [],
@@ -235,7 +243,22 @@ def analyze_medical_image(image_base64: str, additional_context: str = "") -> st
             "success": False,
             "message": "Vision model not available"
         }
+        print("❌ No vision model available")
         return json.dumps(result)
+    
+    # Get image data from session state via accessor
+    image_base64 = get_current_image_data()
+    if not image_base64:
+        result = {
+            "visible_symptoms": [],
+            "analysis_summary": "No image data available in session state",
+            "success": False,
+            "message": "No image data available"
+        }
+        print("❌ No image data retrieved from session")
+        return json.dumps(result)
+    
+    print(f"✅ Got image data from session: {len(image_base64)} characters")
     
     # Validate image data
     validation = validate_base64_image(image_base64)
@@ -246,7 +269,10 @@ def analyze_medical_image(image_base64: str, additional_context: str = "") -> st
             "success": False,
             "message": "Invalid image data"
         }
+        print(f"❌ Image validation failed: {validation['error']}")
         return json.dumps(result)
+    
+    print(f"✅ Image validation passed: {validation['format']}, {validation['size']} bytes")
     
     try:
         # Determine MIME type based on format
@@ -290,7 +316,7 @@ Respond with a simple comma-separated list using everyday language that a patien
         context_addition = f"\n\nPatient context: {additional_context}" if additional_context else ""
         full_prompt = focused_prompt + context_addition
         
-        # Create message for vision model with proper format
+        # Create message for vision model
         messages = [
             {
                 "role": "user",
@@ -310,45 +336,46 @@ Respond with a simple comma-separated list using everyday language that a patien
             }
         ]
         
-        # Call OpenAI Vision API with enhanced error handling and retry logic
+        print(f"🚀 Calling OpenAI Vision API...")
+        
+        # Call OpenAI Vision API with retry logic
         max_retries = 2
+        response_text = None
         for attempt in range(max_retries + 1):
             try:
                 response = _VISION_MODEL.invoke(messages)
                 response_text = response.content.strip()
-                break  # Success, exit retry loop
+                print(f"✅ OpenAI Vision API response received: {len(response_text)} characters")
+                break
                 
             except Exception as api_error:
                 error_str = str(api_error).lower()
+                print(f"❌ OpenAI API error (attempt {attempt + 1}): {api_error}")
                 
-                # Check for specific error types
                 if "unsupported image" in error_str or "image_parse_error" in error_str:
                     if attempt < max_retries:
-                        # Try with a different detail level
                         messages[0]["content"][1]["image_url"]["detail"] = "low" if attempt == 0 else "auto"
+                        print(f"🔄 Retrying with detail level: {messages[0]['content'][1]['image_url']['detail']}")
                         continue
                     else:
-                        # Final attempt failed - provide helpful fallback
                         result = {
                             "visible_symptoms": [],
-                            "analysis_summary": "OpenAI Vision API rejected this image format. This can happen with certain JPEG compression types or corrupted images.",
+                            "analysis_summary": "OpenAI Vision API rejected this image format.",
                             "success": False,
-                            "message": "Image format not accepted by Vision API",
-                            "suggestion": "Try saving the image in a different format (PNG) or taking a new photo."
+                            "message": "Image format not accepted by Vision API"
                         }
                         return json.dumps(result)
                         
                 elif "rate limit" in error_str or "quota" in error_str:
                     result = {
                         "visible_symptoms": [],
-                        "analysis_summary": "OpenAI API rate limit or quota exceeded. Please wait a moment and try again.",
+                        "analysis_summary": "OpenAI API rate limit or quota exceeded.",
                         "success": False,
                         "message": "API rate limit exceeded"
                     }
                     return json.dumps(result)
                     
                 else:
-                    # Other API errors
                     if attempt < max_retries:
                         continue
                     else:
@@ -360,10 +387,21 @@ Respond with a simple comma-separated list using everyday language that a patien
                         }
                         return json.dumps(result)
         
-        # Extract symptoms from response and translate if needed
+        if not response_text:
+            result = {
+                "visible_symptoms": [],
+                "analysis_summary": "No response received from OpenAI Vision API",
+                "success": False,
+                "message": "No API response"
+            }
+            return json.dumps(result)
+        
+        print(f"📝 Processing response: '{response_text[:100]}...'")
+        
+        # Extract symptoms from response
         cleaned_response = response_text.lower()
         
-        # Remove common prefixes and clean up
+        # Remove common prefixes
         prefixes_to_remove = [
             "visible symptoms:",
             "symptoms:",
@@ -381,18 +419,17 @@ Respond with a simple comma-separated list using everyday language that a patien
         # Split into individual symptoms
         raw_symptoms = []
         if cleaned_response:
-            # Split by common delimiters
             symptom_parts = re.split(r'[,;]|and(?=\s)', cleaned_response)
             
             for symptom in symptom_parts:
                 symptom = symptom.strip()
-                # Remove bullet points, numbers, and extra formatting
                 symptom = re.sub(r'^[-•*\d.\s]+', '', symptom)
                 symptom = symptom.strip()
                 
-                # Filter out very short items and common non-symptom words
                 if symptom and len(symptom) > 2 and symptom not in ['etc', 'other', 'some', 'any']:
                     raw_symptoms.append(symptom)
+        
+        print(f"🔍 Extracted raw symptoms: {raw_symptoms}")
         
         # Check if response contains technical medical terms
         technical_terms = ['papules', 'vesicles', 'erythematous', 'macules', 'nodules', 'lesions']
@@ -400,18 +437,19 @@ Respond with a simple comma-separated list using everyday language that a patien
         
         if has_technical_terms:
             symptoms = translate_medical_to_common_terms(raw_symptoms)
+            print(f"🔄 Translated to common terms: {symptoms}")
         else:
             symptoms = raw_symptoms
         
         # Limit to most relevant symptoms
-        symptoms = symptoms[:8]  # Keep top 8 symptoms max
+        symptoms = symptoms[:8]
         
         result = {
             "visible_symptoms": symptoms,
             "analysis_summary": f"Extracted {len(symptoms)} visible symptoms from {validation['format']} image analysis",
             "raw_response": response_text,
-            "original_symptoms": raw_symptoms if 'raw_symptoms' in locals() else symptoms,
-            "translation_applied": has_technical_terms if 'has_technical_terms' in locals() else False,
+            "original_symptoms": raw_symptoms,
+            "translation_applied": has_technical_terms,
             "image_info": {
                 "format": validation['format'],
                 "size_bytes": validation['size'],
@@ -421,9 +459,11 @@ Respond with a simple comma-separated list using everyday language that a patien
             "message": f"Successfully extracted {len(symptoms)} visible symptoms"
         }
         
+        print(f"✅ Analysis complete. Found symptoms: {symptoms}")
         return json.dumps(result)
         
     except Exception as e:
+        print(f"❌ Error during image analysis: {e}")
         result = {
             "visible_symptoms": [],
             "analysis_summary": f"Error during image analysis: {str(e)}",
