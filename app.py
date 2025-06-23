@@ -283,13 +283,14 @@ def display_image_preview(image_file, max_width=300):
             new_height = int(image.height * ratio)
             image = image.resize((max_width, new_height))
             
-        st.image(image, caption="Uploaded Image", use_container_width=True)
+        # Remove use_container_width parameter for compatibility
+        st.image(image, caption="Uploaded Image", width=max_width)
         st.caption(f"Size: {original_width}x{original_height} px")
         
     except Exception as e:
         st.error(f"Error displaying image: {str(e)}")
         print(f"Image display error: {e}")  # For debugging
-
+        
 # Initialize session state
 if 'messages' not in st.session_state:
     st.session_state.messages = []
