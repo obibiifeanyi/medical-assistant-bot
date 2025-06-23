@@ -427,8 +427,6 @@ def load_resources():
         st.error("Error loading resources")
         return None
 
-# Replace the init_assistant() function in your app.py with this:
-
 def get_session_image_data():
     """Get image data from Streamlit session state"""
     return getattr(st.session_state, 'image_base64', None)
@@ -479,8 +477,6 @@ def init_assistant():
                 return False
     return True
 
-# Also update your main_content() function to use cleaner prompts:
-
 def main_content():
     """Render main content with fixed image handling."""
     
@@ -509,15 +505,18 @@ def main_content():
         3. Get AI analysis
         """)
     
-    col1, col2 = st.columns([4, 1])
+    # Add image analysis button if image is uploaded (outside of columns)
+    if st.session_state.uploaded_image and st.session_state.image_base64:
+        if st.button("🔍 Analyze Uploaded Image", use_container_width=True):
+            USER_PROMPT = "Please analyze the uploaded medical image."
+        else:
+            USER_PROMPT = None
+    else:
+        USER_PROMPT = None
 
-    with col1:
+    # Chat input must be at root level (not inside columns)
+    if USER_PROMPT is None:
         USER_PROMPT = st.chat_input("Describe symptoms or ask me to analyze the image...")
-
-    with col2:
-        if st.session_state.uploaded_image and st.session_state.image_base64:
-            if st.button("🔍 Analyze Image", use_container_width=True):
-                USER_PROMPT = "Please analyze the uploaded medical image."
 
     if USER_PROMPT:
         manage_conversation_memory()
@@ -580,7 +579,6 @@ def main_content():
                     "has_image": False
                 })
                 st.rerun()
-
 
 # Run main content
 main_content()
