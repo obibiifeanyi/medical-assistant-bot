@@ -1,8 +1,7 @@
 """
-Kickstart HealthIQ Streamlit App - CLEANED VERSION
+Kickstart HealthIQ Streamlit App 
 ===================================================
-
-Clean production version with crossed-out elements removed.
+.
 """
 
 import os
@@ -73,7 +72,7 @@ st.markdown("""
 
 # Title
 st.title("🏥 Kickstart HealthIQ Chatbot")
-st.markdown("*AI-powered medical insights with multimodal, multi-agent intelligence.*")
+st.markdown("*AI-driven medical insights—built on multimodal data and collaborative reasoning.*")
 
 def clear_all_data():
     """Clear all chat and image data."""
@@ -271,16 +270,25 @@ def encode_image_to_base64(image_file) -> Optional[str]:
 def display_image_preview(image_file, max_width=300):
     """Display image preview."""
     try:
+        # Reset file pointer to beginning
+        image_file.seek(0)
+        
+        # Open image once and reuse
         image = Image.open(image_file)
+        original_width, original_height = image.size
+        
+        # Resize if needed
         if image.width > max_width:
             ratio = max_width / image.width
             new_height = int(image.height * ratio)
             image = image.resize((max_width, new_height))
+            
         st.image(image, caption="Uploaded Image", use_container_width=True)
-        original_image = Image.open(image_file)
-        st.caption(f"Size: {original_image.width}x{original_image.height} px")
-    except Exception:
-        st.error("Error displaying image")
+        st.caption(f"Size: {original_width}x{original_height} px")
+        
+    except Exception as e:
+        st.error(f"Error displaying image: {str(e)}")
+        print(f"Image display error: {e}")  # For debugging
 
 # Initialize session state
 if 'messages' not in st.session_state:
