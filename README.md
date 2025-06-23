@@ -11,7 +11,7 @@ pinned: false
 
 # Agentic AI : Medical Assistant Chatbot 🏥!
 
-A conversational AI medical assistant that can analyze symptoms, identify possible conditions, and provide health information using LangChain and OpenAI. Includes **image and symptom analysis via OpenAI Vision**.
+A conversational AI medical assistant that can analyze symptoms, identify possible conditions, and provide health information using LangChain and OpenAI. 
 
 ## 🧠 Design Philosophy
 
