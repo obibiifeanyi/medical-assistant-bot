@@ -13,6 +13,8 @@ pinned: false
 
 A conversational AI medical assistant that can analyze symptoms, identify possible conditions, and provide health information using LangChain and OpenAI. 
 
+Live demo : https://huggingface.co/spaces/bott-wa/medical-assistant-bot
+
 ## 🧠 Design Philosophy
 
 While today's LLMs are capable of impersonating medical professionals on their own, this **agentic multimodal system** demonstrates a more disciplined, secure, and scalable design:
