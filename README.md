@@ -31,7 +31,7 @@ The result? A smarter, safer, and more controllable diagnostic assistant — **p
 
 ## 🔗 Key Resources
 
-- [Market Analysis for "Medical Chatbts"](https://huggingface.co/spaces/bott-wa/medical-assistant-bot/blob/main/docs/market_analysis.md)
+- [Market Analysis / Requiremetns Gathering for "Medical Chatbts"](https://huggingface.co/spaces/bott-wa/medical-assistant-bot/blob/main/docs/market_analysis.md)
 - [Data Extract, Transform, Load](https://huggingface.co/spaces/bott-wa/medical-assistant-bot/blob/main/docs/data-etl-analysis.md)
 - [High-Level Architecture](https://huggingface.co/spaces/bott-wa/medical-assistant-bot/blob/main/docs/architecture.md)
 - [Live Demo](https://huggingface.co/spaces/bott-wa/medical-assistant-bot)
