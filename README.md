@@ -75,7 +75,7 @@ The medical knowledge base used here is small but usable includes:
 
 ## Local Development
 
-To run locally:
+### Option 1: Direct Python Setup
 
 ```bash
 # Clone the repository
@@ -98,6 +98,63 @@ $env:OPENAI_API_KEY="your-key-here"
 # Run the app
 streamlit run app.py
 ```
+
+### Option 2: Docker Deployment
+
+For containerized deployment with Docker:
+
+```bash
+# Quick start with Docker Compose
+cp .env.example .env  # Edit with your OPENAI_API_KEY
+docker-compose up medical-assistant
+
+# Or build and run manually
+./scripts/docker/build.sh
+docker run -p 8501:8501 -e OPENAI_API_KEY=your-key medical-assistant-bot:latest
+```
+
+**Development mode with hot reload:**
+```bash
+docker-compose --profile dev up medical-assistant-dev
+```
+
+**Access the application:**
+- Streamlit UI: http://localhost:8501
+- Development mode: http://localhost:8502
+
+## Enterprise Deployment
+
+### Amazon SageMaker Integration
+
+Deploy to AWS SageMaker for production-scale inference:
+
+```bash
+# Build SageMaker-compatible image
+docker build --target sagemaker -t medical-assistant-sagemaker:latest .
+
+# Deploy to SageMaker (requires AWS credentials)
+python scripts/docker/deploy-sagemaker.py \
+    --image-uri <your-ecr-uri> \
+    --endpoint-name medical-assistant-endpoint \
+    --instance-type ml.t2.medium
+```
+
+**SageMaker Features:**
+- REST API endpoints (`/ping`, `/invocations`, `/health`)
+- Auto-scaling based on traffic
+- Multiple instance types (ml.t2.medium to ml.c5.xlarge)
+- Enterprise security with IAM roles
+
+**Test SageMaker deployment:**
+```bash
+# Test local SageMaker container
+python scripts/docker/test-sagemaker.py --endpoint-type local
+
+# Test live SageMaker endpoint
+python scripts/docker/test-sagemaker.py --endpoint-type sagemaker
+```
+
+For detailed deployment instructions, see [CLAUDE.md](CLAUDE.md#-docker-deployment).
 
 ## Important Disclaimers
 
