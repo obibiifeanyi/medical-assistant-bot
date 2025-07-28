@@ -525,7 +525,7 @@ def main_content():
 
     # Chat input must be at root level (not inside columns)
     if USER_PROMPT is None:
-        USER_PROMPT = st.chat_input("Describe symptoms or ask me to analyze the image...")
+        USER_PROMPT = st.chat_input("Describe symptoms or ask me to analyze the image (e.g. \"I have a cough, fever and runny nose\")...")
 
     if USER_PROMPT:
         manage_conversation_memory()

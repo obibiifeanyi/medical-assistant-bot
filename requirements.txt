@@ -1,34 +1,53 @@
-# Core dependencies
+# Core dependencies - REQUIRED
 streamlit
 pandas
-numpy
+numpy>=1.26.0,<2.3.0
 
-# LangChain - let pip resolve versions
-langchain
-langchain-community
-langchain-openai
+# LangChain framework - REQUIRED
+langchain>=0.3.0,<0.4.0
+langchain-community>=0.3.0,<0.4.0
+langchain-openai>=0.3.0,<0.4.0
+langchain-huggingface>=0.3.0,<0.4.0
 
-# Vector store and embeddings
+# Vector store and embeddings - REQUIRED
 faiss-cpu
 sentence-transformers
-langchain-huggingface
 
-# OpenAI (enhanced for vision)
-openai>=1.0.0
+# OpenAI API - REQUIRED
+openai>=1.86.0
 
-# Image processing for enhanced features
+# Image processing - REQUIRED
 Pillow
-pillow-heif  # For HEIF/HEIC image support
 
-# NLTK for text processing
-nltk
+# Optional dependencies for extended functionality
+# Uncomment as needed:
 
-# Other utilities
-python-dotenv
-tiktoken
+# For additional image formats
+# pillow-heif
 
-# Optional: Enhanced image preprocessing
-opencv-python-headless  # For advanced image preprocessing (optional)
+# For advanced image processing
+# opencv-python-headless
 
-# Development and testing
-pytest  # For testing enhanced functionality
+# For text processing (not currently used)
+# nltk
+
+# For model management (automatically installed with sentence-transformers)
+# huggingface-hub
+# transformers>=4.41.0
+
+# For token counting (not currently used in code)
+# tiktoken
+
+# For environment management (only needed in development)
+# python-dotenv
+
+# For testing (development only)
+pytest>=7.0.0
+pytest-html>=3.1.0
+pytest-cov>=4.0.0
+pytest-xdist>=3.0.0
+pytest-mock>=3.10.0
+pytest-timeout>=2.1.0
+robotframework>=6.0.0
+robotframework-requests>=0.9.0
+robotframework-seleniumlibrary>=6.0.0
