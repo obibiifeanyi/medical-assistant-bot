@@ -1,34 +1,36 @@
 # Core dependencies
 streamlit
 pandas
-numpy
+numpy>=1.26.0,<2.3.0  # Compatible with pandas and opencv constraints
 
-# LangChain - let pip resolve versions
-langchain
-langchain-community
-langchain-openai
+# LangChain framework
+langchain>=0.3.0,<0.4.0
+langchain-community>=0.3.0,<0.4.0
+langchain-openai>=0.3.0,<0.4.0
+langchain-huggingface>=0.3.0,<0.4.0
 
 # Vector store and embeddings
 faiss-cpu
 sentence-transformers
-langchain-huggingface
+huggingface-hub
 
-# OpenAI (enhanced for vision)
-openai>=1.0.0
-
-# Image processing for enhanced features
-Pillow
-pillow-heif  # For HEIF/HEIC image support
-
-# NLTK for text processing
-nltk
-
-# Other utilities
-python-dotenv
+# OpenAI API
+openai>=1.86.0
 tiktoken
 
-# Optional: Enhanced image preprocessing
-opencv-python-headless  # For advanced image preprocessing (optional)
+# Image processing
+Pillow
+pillow-heif
+opencv-python-headless
+
+# Text processing
+nltk
+
+# ML/AI dependencies
+transformers>=4.41.0
+
+# Utilities
+python-dotenv
 
 # Development and testing
-pytest  # For testing enhanced functionality
+pytest
