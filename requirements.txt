@@ -42,4 +42,12 @@ Pillow
 # python-dotenv
 
 # For testing (development only)
-# pytest
+pytest>=7.0.0
+pytest-html>=3.1.0
+pytest-cov>=4.0.0
+pytest-xdist>=3.0.0
+pytest-mock>=3.10.0
+pytest-timeout>=2.1.0
+robotframework>=6.0.0
+robotframework-requests>=0.9.0
+robotframework-seleniumlibrary>=6.0.0
