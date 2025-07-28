@@ -11,7 +11,6 @@ import pandas as pd
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
-import numpy as np
 
 def create_faiss_indices(data_path="./data", output_path="./indices"):
     """Create FAISS indices from CSV files."""
